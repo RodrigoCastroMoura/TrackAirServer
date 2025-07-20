@@ -22,5 +22,6 @@ class Veiculo(BaseModel):
     ds_modelo: Optional[str] = None  # Modelo do veículo
     comandoBloqueo: Optional[bool] = None  # True = bloquear, False = desbloquear, None = sem comando
     bloqueado: Optional[bool] = False  # Status atual de bloqueio
+    comandoTrocarIP: Optional[bool] = None  # True = comando para trocar IP pendente
     ignicao: bool = False  # Status da ignição
     ts_user_manu: Optional[datetime] = Field(default_factory=datetime.utcnow)  # Última atualização

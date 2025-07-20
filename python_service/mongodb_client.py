@@ -114,6 +114,29 @@ class MongoDBClient:
         except Exception as e:
             logger.error(f"Erro ao definir comando para {imei}: {e}")
             return False
+    
+    async def set_comando_trocar_ip(self, imei: str, trocar: bool = True) -> bool:
+        """Define comando para trocar IP do dispositivo."""
+        try:
+            collection = self.database.veiculo
+            
+            update_data = {
+                "comandoTrocarIP": trocar,
+                "ts_user_manu": datetime.utcnow()
+            }
+            
+            result = await collection.update_one(
+                {"IMEI": imei},
+                {"$set": update_data},
+                upsert=True
+            )
+            
+            logger.info(f"Comando de trocar IP definido para IMEI {imei}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Erro ao definir comando trocar IP para {imei}: {e}")
+            return False
             
     async def clear_comando_bloqueio(self, imei: str) -> bool:
         """Limpa comando de bloqueio após envio."""
@@ -134,13 +157,36 @@ class MongoDBClient:
         except Exception as e:
             logger.error(f"Erro ao limpar comando para {imei}: {e}")
             return False
+    
+    async def clear_comando_trocar_ip(self, imei: str) -> bool:
+        """Limpa comando de trocar IP após envio."""
+        try:
+            collection = self.database.veiculo
+            
+            result = await collection.update_one(
+                {"IMEI": imei},
+                {"$set": {
+                    "comandoTrocarIP": None,
+                    "ts_user_manu": datetime.utcnow()
+                }}
+            )
+            
+            logger.info(f"Comando de trocar IP limpo para IMEI {imei}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Erro ao limpar comando trocar IP para {imei}: {e}")
+            return False
             
     async def get_veiculos_com_comando_pendente(self) -> List[Veiculo]:
-        """Busca veículos com comandos de bloqueio pendentes."""
+        """Busca veículos com comandos pendentes (bloqueio ou trocar IP)."""
         try:
             collection = self.database.veiculo
             cursor = collection.find({
-                "comandoBloqueo": {"$ne": None}
+                "$or": [
+                    {"comandoBloqueo": {"$ne": None}},
+                    {"comandoTrocarIP": {"$ne": None}}
+                ]
             })
             
             veiculos = []

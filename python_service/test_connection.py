@@ -62,19 +62,28 @@ async def test_connection():
         print(f"✓ Encontrados {len(pendentes)} veículos com comandos pendentes")
         
         # Teste 5: Definir comando de bloqueio
-        print("\n5. Testando definição de comando...")
+        print("\n5. Testando definição de comando bloqueio...")
         await mongodb_client.set_comando_bloqueio("123456789012345", False)  # Desbloquear
         print("✓ Comando de desbloqueio definido")
         
-        # Verificar se comando foi salvo
+        # Teste 6: Definir comando trocar IP
+        print("\n6. Testando comando trocar IP...")
+        await mongodb_client.set_comando_trocar_ip("123456789012345", True)
+        print("✓ Comando trocar IP definido")
+        
+        # Verificar se comandos foram salvos
         veiculo_atualizado = await mongodb_client.get_veiculo_by_imei("123456789012345")
         if veiculo_atualizado:
-            print(f"  Novo comando: {veiculo_atualizado.comandoBloqueo}")
+            print(f"  Comando bloqueio: {veiculo_atualizado.comandoBloqueo}")
+            print(f"  Comando trocar IP: {veiculo_atualizado.comandoTrocarIP}")
         
         print("\n✅ TODOS OS TESTES PASSARAM!")
         print("\nColeções criadas no MongoDB:")
         print("- dados_veiculo: Dados GPS dos dispositivos")
-        print("- veiculo: Informações e comandos dos veículos")
+        print("- veiculo: Informações, comandos bloqueio e trocar IP")
+        print("\nComandos disponíveis:")
+        print("- Bloqueio/Desbloqueio via AT+GTOUT")
+        print("- Configuração IP via AT+GTSRI")
         print("\nO serviço está pronto para usar!")
         
     except Exception as e:

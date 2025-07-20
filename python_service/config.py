@@ -25,7 +25,16 @@ class Config(BaseSettings):
     command_timeout: int = Field(default=30, env="COMMAND_TIMEOUT")
     device_timeout: int = Field(default=300, env="DEVICE_TIMEOUT")
     
+    # IP Configuration for devices
+    new_server_ip: str = Field(default="", env="NEW_SERVER_IP")
+    new_server_port: int = Field(default=8000, env="NEW_SERVER_PORT")
+    backup_server_ip: str = Field(default="", env="BACKUP_SERVER_IP")
+    backup_server_port: int = Field(default=8000, env="BACKUP_SERVER_PORT")
+    
     class Config:
         env_file = ".env"
 
-config = Config()
+def get_settings():
+    return Config()
+
+config = get_settings()

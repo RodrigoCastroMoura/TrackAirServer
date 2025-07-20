@@ -57,6 +57,18 @@ class CommandAPI:
             return {"erro": str(e)}
     
     @staticmethod
+    async def trocar_ip_dispositivo(imei: str) -> bool:
+        """Define comando para trocar IP do dispositivo."""
+        try:
+            result = await mongodb_client.set_comando_trocar_ip(imei, True)
+            if result:
+                logger.info(f"API: Comando de TROCAR IP definido para {imei}")
+            return result
+        except Exception as e:
+            logger.error(f"Erro ao definir trocar IP para {imei}: {e}")
+            return False
+    
+    @staticmethod
     async def listar_comandos_pendentes() -> list:
         """Lista todos os veículos com comandos pendentes."""
         try:
@@ -64,10 +76,16 @@ class CommandAPI:
             result = []
             
             for veiculo in veiculos:
+                comandos = []
+                if veiculo.comandoBloqueo is not None:
+                    comandos.append("bloquear" if veiculo.comandoBloqueo else "desbloquear")
+                if veiculo.comandoTrocarIP:
+                    comandos.append("trocar_ip")
+                
                 result.append({
                     "imei": veiculo.IMEI,
                     "placa": veiculo.ds_placa,
-                    "comando": "bloquear" if veiculo.comandoBloqueo else "desbloquear",
+                    "comandos": comandos,
                     "ignicao": veiculo.ignicao
                 })
                 
