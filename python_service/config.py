@@ -10,7 +10,7 @@ class Config(BaseSettings):
     
     # MongoDB Configuration
     mongodb_url: str = Field(default="mongodb://localhost:27017", env="MONGODB_URL")
-    mongodb_database: str = Field(default="rastreio_facil", env="MONGODB_DATABASE")
+    mongodb_database: str = Field(default="gps_tracking_service", env="MONGODB_DATABASE")
     
     # TCP Server Configuration
     tcp_host: str = Field(default="0.0.0.0", env="TCP_HOST")
