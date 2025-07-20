@@ -1,99 +1,60 @@
 #!/usr/bin/env python3
 """
-GV50 GPS Tracking Service
-Main entry point for the TCP server service.
+Serviço Python TCP para dispositivos GPS GV50
+Sistema simplificado com apenas 2 tabelas: DadosVeiculo e Veiculo
 """
 
 import asyncio
 import signal
 import sys
-from .tcp_server import tcp_server
-from .mongodb_client import mongodb_client
-from .logger import get_logger, setup_logging
-from .config import config
+from tcp_server import tcp_server
+from logger import get_logger
 
 logger = get_logger(__name__)
 
-class GPSTrackingService:
-    """Main service class."""
+class GPSService:
+    """Serviço principal GPS."""
     
     def __init__(self):
         self.running = False
         
     async def start(self):
-        """Start the GPS tracking service."""
+        """Inicia o serviço GPS."""
+        self.running = True
+        logger.info("=== INICIANDO SERVIÇO GPS GV50 ===")
+        logger.info("Sistema simplificado: DadosVeiculo + Veiculo")
+        logger.info("Funcionalidades: Recebe dados GPS e gerencia bloqueio/desbloqueio")
+        
         try:
-            logger.info("Starting GPS Tracking Service")
-            logger.info(f"Configuration: TCP {config.tcp_host}:{config.tcp_port}, MongoDB: {config.mongodb_database}")
-            
-            # Connect to MongoDB
-            await mongodb_client.connect()
-            
-            # Start TCP server
-            self.running = True
-            await tcp_server.start()
-            
+            await tcp_server.start_server()
+        except KeyboardInterrupt:
+            logger.info("Serviço interrompido pelo usuário")
         except Exception as e:
-            logger.error(f"Error starting service: {e}")
+            logger.error(f"Erro no serviço: {e}")
+        finally:
             await self.stop()
-            raise
-    
+            
     async def stop(self):
-        """Stop the GPS tracking service."""
-        if not self.running:
-            return
-            
-        logger.info("Stopping GPS Tracking Service")
-        self.running = False
-        
-        try:
-            # Stop TCP server
-            await tcp_server.stop()
-            
-            # Disconnect from MongoDB
-            await mongodb_client.disconnect()
-            
-        except Exception as e:
-            logger.error(f"Error stopping service: {e}")
-        
-        logger.info("GPS Tracking Service stopped")
+        """Para o serviço GPS."""
+        if self.running:
+            logger.info("=== PARANDO SERVIÇO GPS ===")
+            await tcp_server.stop_server()
+            self.running = False
 
-def setup_signal_handlers(service: GPSTrackingService):
-    """Setup signal handlers for graceful shutdown."""
-    def signal_handler(signum, frame):
-        logger.info(f"Received signal {signum}, initiating shutdown")
-        asyncio.create_task(service.stop())
-    
-    signal.signal(signal.SIGINT, signal_handler)
-    signal.signal(signal.SIGTERM, signal_handler)
+def signal_handler(signum, frame):
+    """Handler para sinais de sistema."""
+    logger.info(f"Recebido sinal {signum}")
+    sys.exit(0)
 
 async def main():
-    """Main function."""
-    # Setup logging
-    setup_logging()
+    """Função principal."""
+    # Configurar handlers de sinal
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
     
-    # Create service instance
-    service = GPSTrackingService()
-    
-    # Setup signal handlers
-    setup_signal_handlers(service)
-    
-    try:
-        # Start the service
-        await service.start()
-    except KeyboardInterrupt:
-        logger.info("Received keyboard interrupt")
-    except Exception as e:
-        logger.error(f"Service error: {e}")
-    finally:
-        await service.stop()
-        sys.exit(0)
+    # Iniciar serviço
+    service = GPSService()
+    await service.start()
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("\nShutdown requested by user")
-    except Exception as e:
-        print(f"Fatal error: {e}")
-        sys.exit(1)
+    asyncio.run(main())

@@ -1,63 +1,85 @@
 #!/usr/bin/env python3
 """
-Teste de conexão com MongoDB Atlas
+Teste de conexão simplificado com apenas 2 tabelas
 """
 
 import asyncio
 from mongodb_client import mongodb_client
+from models import DadosVeiculo, Veiculo
 from logger import get_logger
+from datetime import datetime
 
 logger = get_logger(__name__)
 
 async def test_connection():
-    """Testa a conexão com MongoDB Atlas."""
+    """Testa conexão e operações básicas."""
     try:
-        print("Testando conexão com MongoDB Atlas...")
+        print("=== TESTE DE CONEXÃO GPS SERVICE ===")
+        print("Testando MongoDB Atlas...")
         
-        # Conectar ao MongoDB
+        # Conectar
         await mongodb_client.connect()
+        print("✓ Conectado ao MongoDB")
         
-        # Testar operação básica
-        print("✓ Conexão estabelecida com sucesso!")
-        
-        # Listar coleções existentes
-        collections = await mongodb_client.database.list_collection_names()
-        print(f"✓ Coleções encontradas: {collections}")
-        
-        # Testar inserção de dados de teste
-        from models import VehicleData
-        from datetime import datetime
-        
-        test_data = VehicleData(
-            imei="123456789012345",
-            longitude="-46.633308",
+        # Teste 1: Inserir dados GPS
+        print("\n1. Testando inserção de dados GPS...")
+        dados_test = DadosVeiculo(
+            IMEI="123456789012345",
+            longitude="-46.633308", 
             latitude="-23.550520",
-            altitude="760",
-            speed="0",
-            ignition=False,
-            timestamp=datetime.utcnow(),
-            device_time="20241221163000",
-            raw_data="+RESP:GTFRI,060228,123456789012345,,0,0,1,1,4.3,92,70.0,-46.633308,-23.550520,20241221163000,0460,0000,18d8,6141,00,2000.0,20241221163000,11F0$"
+            altidude="760",
+            speed="60",
+            ignicao=True,
+            dataDevice="20240720163000"
         )
         
-        # Inserir dados de teste
-        vehicle_id = await mongodb_client.insert_vehicle_data(test_data)
-        print(f"✓ Dados de teste inseridos com ID: {vehicle_id}")
+        dados_id = await mongodb_client.insert_dados_veiculo(dados_test)
+        print(f"✓ Dados GPS inseridos: {dados_id}")
         
-        # Buscar dados inseridos
-        vehicle_data = await mongodb_client.get_vehicle_data_by_imei("123456789012345", 1)
-        if vehicle_data:
-            print(f"✓ Dados recuperados: {len(vehicle_data)} registro(s)")
-            print(f"  IMEI: {vehicle_data[0].imei}")
-            print(f"  Posição: {vehicle_data[0].latitude}, {vehicle_data[0].longitude}")
-            print(f"  Timestamp: {vehicle_data[0].timestamp}")
+        # Teste 2: Criar/atualizar veículo
+        print("\n2. Testando criação de veículo...")
+        veiculo_test = Veiculo(
+            IMEI="123456789012345",
+            ds_placa="ABC-1234",
+            ignicao=True,
+            comandoBloqueo=True  # Comando pendente para bloquear
+        )
         
-        print("\n✅ Teste de conexão concluído com sucesso!")
-        print("O serviço está pronto para receber dados dos dispositivos GPS.")
+        await mongodb_client.update_veiculo(veiculo_test)
+        print("✓ Veículo criado/atualizado")
+        
+        # Teste 3: Buscar veículo
+        print("\n3. Testando busca de veículo...")
+        veiculo_encontrado = await mongodb_client.get_veiculo_by_imei("123456789012345")
+        if veiculo_encontrado:
+            print(f"✓ Veículo encontrado: {veiculo_encontrado.ds_placa}")
+            print(f"  Comando bloqueio: {veiculo_encontrado.comandoBloqueo}")
+            print(f"  Status bloqueado: {veiculo_encontrado.bloqueado}")
+        
+        # Teste 4: Verificar comandos pendentes
+        print("\n4. Testando busca de comandos pendentes...")
+        pendentes = await mongodb_client.get_veiculos_com_comando_pendente()
+        print(f"✓ Encontrados {len(pendentes)} veículos com comandos pendentes")
+        
+        # Teste 5: Definir comando de bloqueio
+        print("\n5. Testando definição de comando...")
+        await mongodb_client.set_comando_bloqueio("123456789012345", False)  # Desbloquear
+        print("✓ Comando de desbloqueio definido")
+        
+        # Verificar se comando foi salvo
+        veiculo_atualizado = await mongodb_client.get_veiculo_by_imei("123456789012345")
+        if veiculo_atualizado:
+            print(f"  Novo comando: {veiculo_atualizado.comandoBloqueo}")
+        
+        print("\n✅ TODOS OS TESTES PASSARAM!")
+        print("\nColeções criadas no MongoDB:")
+        print("- dados_veiculo: Dados GPS dos dispositivos")
+        print("- veiculo: Informações e comandos dos veículos")
+        print("\nO serviço está pronto para usar!")
         
     except Exception as e:
-        print(f"❌ Erro durante o teste: {e}")
-        logger.error(f"Erro no teste de conexão: {e}")
+        print(f"❌ Erro no teste: {e}")
+        logger.error(f"Erro no teste: {e}")
         
     finally:
         await mongodb_client.disconnect()

@@ -1,193 +1,182 @@
+#!/usr/bin/env python3
+"""
+Servidor TCP simples para dispositivos GPS GV50
+Recebe dados GPS e verifica comandos de bloqueio
+"""
+
 import asyncio
-from typing import Optional
-from .models import VehicleData, Vehicle, DeviceStatus
-from .protocol_parser import GV50ProtocolParser
-from .mongodb_client import mongodb_client
-from .command_manager import command_manager
-from .device_manager import device_manager
-from .config import config
-from .logger import get_logger
+from typing import Dict, Set
+from datetime import datetime
+from protocol_parser import parse_gv50_message
+from mongodb_client import mongodb_client
+from models import DadosVeiculo, Veiculo
+from config import get_settings
+from logger import get_logger
 
 logger = get_logger(__name__)
 
-class GV50TCPServer:
-    """TCP Server for GV50 GPS devices."""
+class GPSDeviceHandler:
+    """Manipulador para conexões de dispositivos GPS."""
     
     def __init__(self):
-        self.server: Optional[asyncio.Server] = None
-        self.parser = GV50ProtocolParser()
+        self.connected_devices: Dict[str, asyncio.StreamWriter] = {}
+        self.settings = get_settings()
         
-    async def start(self):
-        """Start the TCP server."""
+    async def handle_device(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+        """Manipula conexão de um dispositivo GPS."""
+        client_ip = writer.get_extra_info('peername')[0]
+        logger.info(f"Nova conexão GPS de {client_ip}")
+        
+        imei = None
         try:
+            while True:
+                # Ler dados do dispositivo
+                data = await reader.read(1024)
+                if not data:
+                    break
+                    
+                message = data.decode('utf-8').strip()
+                logger.info(f"Recebido de {client_ip}: {message}")
+                
+                # Processar mensagem do protocolo GV50
+                parsed = parse_gv50_message(message)
+                if parsed and parsed.get('imei'):
+                    imei = parsed['imei']
+                    self.connected_devices[imei] = writer
+                    
+                    # Salvar dados GPS no MongoDB
+                    await self.save_gps_data(parsed, message)
+                    
+                    # Verificar comandos pendentes
+                    await self.check_pending_commands(imei, writer)
+                    
+                    # Enviar ACK
+                    await self.send_ack(writer, parsed.get('number', '0000'))
+                    
+        except asyncio.IncompleteReadError:
+            logger.info(f"Dispositivo {client_ip} desconectado")
+        except Exception as e:
+            logger.error(f"Erro ao processar dispositivo {client_ip}: {e}")
+        finally:
+            if imei and imei in self.connected_devices:
+                del self.connected_devices[imei]
+            writer.close()
+            await writer.wait_closed()
+            
+    async def save_gps_data(self, parsed_data: dict, raw_message: str):
+        """Salva dados GPS no MongoDB."""
+        try:
+            # Criar objeto DadosVeiculo
+            dados = DadosVeiculo(
+                IMEI=parsed_data['imei'],
+                longitude=parsed_data.get('longitude', '0'),
+                latitude=parsed_data.get('latitude', '0'), 
+                altidude=parsed_data.get('altitude', '0'),
+                speed=parsed_data.get('speed', '0'),
+                ignicao=parsed_data.get('ignition', False),
+                dataDevice=parsed_data.get('device_time', ''),
+                data=datetime.utcnow()
+            )
+            
+            # Inserir no MongoDB
+            await mongodb_client.insert_dados_veiculo(dados)
+            
+            # Atualizar status do veículo
+            veiculo = await mongodb_client.get_veiculo_by_imei(parsed_data['imei'])
+            if not veiculo:
+                # Criar novo veículo se não existe
+                veiculo = Veiculo(
+                    IMEI=parsed_data['imei'],
+                    ignicao=parsed_data.get('ignition', False)
+                )
+            else:
+                # Atualizar ignição
+                veiculo.ignicao = parsed_data.get('ignition', False)
+                
+            await mongodb_client.update_veiculo(veiculo)
+            
+        except Exception as e:
+            logger.error(f"Erro ao salvar dados GPS: {e}")
+            
+    async def check_pending_commands(self, imei: str, writer: asyncio.StreamWriter):
+        """Verifica e envia comandos pendentes para o dispositivo."""
+        try:
+            veiculo = await mongodb_client.get_veiculo_by_imei(imei)
+            if not veiculo or veiculo.comandoBloqueo is None:
+                return
+                
+            # Enviar comando de bloqueio/desbloqueio
+            if veiculo.comandoBloqueo:
+                command = "AT+GTOUT=gv50,1,0,,,,,,FFFF$"  # Bloquear
+                logger.info(f"Enviando comando de BLOQUEIO para {imei}")
+            else:
+                command = "AT+GTOUT=gv50,0,0,,,,,,FFFF$"  # Desbloquear  
+                logger.info(f"Enviando comando de DESBLOQUEIO para {imei}")
+                
+            # Enviar comando
+            writer.write(command.encode('utf-8'))
+            await writer.drain()
+            
+            # Limpar comando após envio
+            await mongodb_client.clear_comando_bloqueio(imei)
+            
+            # Atualizar status de bloqueado
+            veiculo.bloqueado = veiculo.comandoBloqueo
+            await mongodb_client.update_veiculo(veiculo)
+            
+        except Exception as e:
+            logger.error(f"Erro ao verificar comandos para {imei}: {e}")
+            
+    async def send_ack(self, writer: asyncio.StreamWriter, number: str):
+        """Envia ACK para o dispositivo."""
+        try:
+            ack_message = f"+SACK:GTFRI,{number}$"
+            writer.write(ack_message.encode('utf-8'))
+            await writer.drain()
+            logger.debug(f"ACK enviado: {ack_message}")
+        except Exception as e:
+            logger.error(f"Erro ao enviar ACK: {e}")
+
+class TCPServer:
+    """Servidor TCP principal para dispositivos GPS."""
+    
+    def __init__(self):
+        self.settings = get_settings()
+        self.device_handler = GPSDeviceHandler()
+        self.server = None
+        
+    async def start_server(self):
+        """Inicia o servidor TCP."""
+        try:
+            # Conectar ao MongoDB primeiro
+            await mongodb_client.connect()
+            
+            # Iniciar servidor TCP
             self.server = await asyncio.start_server(
-                self.handle_client,
-                config.tcp_host,
-                config.tcp_port,
-                limit=1024 * 1024  # 1MB buffer limit
+                self.device_handler.handle_device,
+                self.settings.tcp_host,
+                self.settings.tcp_port
             )
             
             addr = self.server.sockets[0].getsockname()
-            logger.info(f"GV50 TCP Server started on {addr[0]}:{addr[1]}")
+            logger.info(f"Servidor GPS iniciado em {addr[0]}:{addr[1]}")
             
-            # Start device manager
-            await device_manager.start()
-            
-            # Start serving
-            await self.server.serve_forever()
-            
+            # Manter servidor rodando
+            async with self.server:
+                await self.server.serve_forever()
+                
         except Exception as e:
-            logger.error(f"Error starting TCP server: {e}")
+            logger.error(f"Erro ao iniciar servidor: {e}")
             raise
-    
-    async def stop(self):
-        """Stop the TCP server."""
+            
+    async def stop_server(self):
+        """Para o servidor TCP."""
         if self.server:
             self.server.close()
             await self.server.wait_closed()
+            logger.info("Servidor GPS parado")
             
-        await device_manager.stop()
-        logger.info("TCP Server stopped")
-    
-    async def handle_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
-        """Handle client connection."""
-        remote_addr = writer.get_extra_info('peername')
-        logger.info(f"New connection from {remote_addr}")
-        
-        client_imei = None
-        
-        try:
-            while True:
-                # Read data with timeout
-                try:
-                    data = await asyncio.wait_for(reader.read(1024), timeout=30.0)
-                except asyncio.TimeoutError:
-                    logger.debug(f"Connection timeout for {remote_addr}")
-                    break
-                
-                if not data:
-                    logger.debug(f"Connection closed by client {remote_addr}")
-                    break
-                
-                # Decode and parse message
-                raw_message = data.decode('utf-8', errors='ignore').strip()
-                
-                if not raw_message:
-                    continue
-                
-                logger.info(f"Received from {remote_addr}: {raw_message}")
-                await self._save_raw_log(raw_message)
-                
-                # Parse the message
-                parsed_msg = self.parser.parse_message(raw_message)
-                if not parsed_msg:
-                    logger.warning(f"Failed to parse message: {raw_message}")
-                    continue
-                
-                # Register device if first valid message
-                if client_imei is None and parsed_msg.imei:
-                    client_imei = parsed_msg.imei
-                    await device_manager.register_device(client_imei, writer, str(remote_addr))
-                
-                # Update device activity
-                if client_imei:
-                    await device_manager.update_device_activity(client_imei)
-                
-                # Process the message
-                await self._process_message(parsed_msg, writer)
-                
-        except Exception as e:
-            logger.error(f"Error handling client {remote_addr}: {e}")
-        finally:
-            # Clean up connection
-            if client_imei:
-                await device_manager.unregister_device(client_imei)
-            
-            try:
-                writer.close()
-                await writer.wait_closed()
-            except:
-                pass
-            
-            logger.info(f"Connection closed for {remote_addr}")
-    
-    async def _process_message(self, parsed_msg, writer):
-        """Process parsed message based on type."""
-        try:
-            if parsed_msg.message_type.value in ["+RESP", "+BUFF"]:
-                await self._process_data_message(parsed_msg, writer)
-            elif parsed_msg.message_type.value == "+ACK":
-                await self._process_ack_message(parsed_msg)
-                
-        except Exception as e:
-            logger.error(f"Error processing message: {e}")
-    
-    async def _process_data_message(self, parsed_msg, writer):
-        """Process data messages (+RESP, +BUFF)."""
-        try:
-            # Extract vehicle data
-            vehicle_data = self.parser.extract_vehicle_data(parsed_msg)
-            if vehicle_data:
-                # Save vehicle data to database
-                await mongodb_client.insert_vehicle_data(vehicle_data)
-                
-                # Update vehicle status based on message type
-                if parsed_msg.command_type.value in ["GTIGN", "GTIGF"]:
-                    await self._update_vehicle_ignition(parsed_msg)
-            
-            # Send pending commands to device
-            await self._send_pending_commands(parsed_msg.imei, writer)
-            
-        except Exception as e:
-            logger.error(f"Error processing data message: {e}")
-    
-    async def _process_ack_message(self, parsed_msg):
-        """Process acknowledgment messages (+ACK)."""
-        try:
-            # Process command acknowledgment
-            await command_manager.process_command_acknowledgment(
-                parsed_msg.imei, 
-                parsed_msg.raw_data
-            )
-            
-        except Exception as e:
-            logger.error(f"Error processing ACK message: {e}")
-    
-    async def _update_vehicle_ignition(self, parsed_msg):
-        """Update vehicle ignition status."""
-        try:
-            vehicle = await mongodb_client.get_vehicle_by_imei(parsed_msg.imei)
-            if vehicle:
-                vehicle.ignition = (parsed_msg.command_type.value == "GTIGN")
-                await mongodb_client.upsert_vehicle(vehicle)
-                
-        except Exception as e:
-            logger.error(f"Error updating vehicle ignition: {e}")
-    
-    async def _send_pending_commands(self, imei: str, writer: asyncio.StreamWriter):
-        """Send pending commands to device."""
-        try:
-            pending_commands = await command_manager.get_pending_commands_for_device(imei)
-            
-            for command in pending_commands:
-                success = await command_manager.send_command_to_device(writer, command)
-                if not success:
-                    logger.error(f"Failed to send command {command.id} to device {imei}")
-                    
-        except Exception as e:
-            logger.error(f"Error sending pending commands: {e}")
-    
-    async def _save_raw_log(self, raw_message: str):
-        """Save raw message to log file for debugging."""
-        try:
-            timestamp = asyncio.get_event_loop().time()
-            log_entry = f"{timestamp}: {raw_message}\n"
-            
-            # This could be enhanced to write to a separate log file
-            logger.debug(f"Raw message: {raw_message}")
-            
-        except Exception as e:
-            logger.error(f"Error saving raw log: {e}")
+        await mongodb_client.disconnect()
 
-# Global instance
-tcp_server = GV50TCPServer()
+# Instância global
+tcp_server = TCPServer()
