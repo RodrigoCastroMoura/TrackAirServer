@@ -8,6 +8,7 @@ Este é um serviço Python TCP completo para comunicação com dispositivos GPS 
 
 Preferred communication style: Simple, everyday language.
 Projeto requer apenas serviço Python, sem interface web.
+Clean Code: Usar apenas campos essenciais, remover classes/arquivos não utilizados.
 
 ## System Architecture
 
@@ -22,15 +23,12 @@ Serviço Python standalone com arquitetura assíncrona:
 
 ## Key Components
 
-### Database Schema
-O sistema usa MongoDB para armazenamento de dados:
-- **MongoDB** (via Motor): Dados de rastreamento GPS e comunicações de dispositivos
+### Database Schema (Clean Code)
+O sistema usa MongoDB com apenas 2 coleções essenciais:
+- **DadosVeiculo**: Dados GPS (IMEI, longitude, latitude, altitude, speed, ignicao, dataDevice)  
+- **Veiculo**: Controle de bloqueio (IMEI, ds_placa, ds_modelo, comandoBloqueo, bloqueado, ignicao)
 
-Principais entidades incluem:
-- Veículos com rastreamento por IMEI
-- Dados de rastreamento veicular (coordenadas GPS, velocidade, status de ignição)
-- Comandos para controle de dispositivos (bloquear/desbloquear, configuração)
-- Configurações e gerenciamento de status dos dispositivos
+Sistema simplificado para receber dados GPS e gerenciar comandos de bloqueio/desbloqueio.
 
 ### GPS Protocol Handler
 - Analisa mensagens GPS recebidas (protocolos +RESP, +BUFF, +ACK)
@@ -50,12 +48,14 @@ Principais entidades incluem:
 - Atualiza status online/offline dos dispositivos
 - Mantém histórico de última atividade
 
-## Data Flow
+## Data Flow (Simplificado)
 
-1. **Ingestão de Dados GPS**: Dispositivos GPS conectam ao serviço Python TCP via sockets TCP
-2. **Processamento de Protocolo**: Serviço Python analisa mensagens GPS recebidas e armazena dados no MongoDB
-3. **Execução de Comandos**: Comandos enfileirados são enviados para dispositivos via conexão TCP
-4. **Persistência de Dados**: Todos os dados de veículo e comando armazenados no MongoDB
+1. **Dispositivo GPS conecta** → Servidor TCP recebe dados via protocolo GV50
+2. **Salva dados GPS** → Insere na coleção `dados_veiculo` 
+3. **Atualiza veículo** → Insere/atualiza na coleção `veiculo`
+4. **Verifica comandos** → Campo `comandoBloqueo` (True/False/None)
+5. **Envia comando** → AT+GTOUT para bloquear/desbloquear dispositivo
+6. **Limpa comando** → Define `comandoBloqueo = None` após envio
 
 ## External Dependencies
 
