@@ -21,9 +21,10 @@ class GPSService:
     async def start(self):
         """Inicia o serviço GPS."""
         self.running = True
-        logger.info("=== INICIANDO SERVIÇO GPS GV50 ===")
+        logger.info("=== INICIANDO SERVIÇO GPS GV50 - LONG CONNECTION MODE ===")
         logger.info("Sistema simplificado: DadosVeiculo + Veiculo")
-        logger.info("Funcionalidades: Recebe dados GPS e gerencia bloqueio/desbloqueio")
+        logger.info("Modo: TCP Long-Connection conforme documentação GV50")
+        logger.info("Funcionalidades: Recebe dados GPS, gerencia bloqueio/desbloqueio e conexões persistentes")
         
         try:
             await tcp_server.start_server()

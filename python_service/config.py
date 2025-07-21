@@ -21,10 +21,13 @@ class Config(BaseSettings):
     log_level: str = Field(default="INFO")
     log_file: str = Field(default="logs/gps_service.log")
     
-    # Service Configuration
+    # Service Configuration - Long Connection Mode
     max_connections: int = Field(default=1000)
     command_timeout: int = Field(default=30)
-    device_timeout: int = Field(default=300)
+    device_timeout: int = Field(default=1800)  # 30 min para long-connection
+    heartbeat_interval: int = Field(default=300)  # 5 min heartbeat  
+    keep_alive_timeout: int = Field(default=600)  # 10 min keep-alive
+    connection_mode: str = Field(default="long-connection")  # Modo de conexão GV50
     
     # IP Configuration for devices
     new_server_ip: str = Field(default="")

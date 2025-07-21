@@ -2,7 +2,7 @@
 
 ## Overview
 
-Este é um serviço Python TCP completo para comunicação com dispositivos GPS GV50. O serviço recebe dados de localização, processa mensagens do protocolo GV50, gerencia comandos bidirecionais e armazena informações no MongoDB. Foi desenvolvido baseado no protocolo oficial GV50 @Track Air Interface Protocol V4.01 e no exemplo C# fornecido.
+Este é um serviço Python TCP completo para comunicação com dispositivos GPS GV50 em modo Long-Connection. O serviço mantém conexões persistentes com dispositivos, processa mensagens do protocolo GV50, gerencia comandos bidirecionais e armazena informações no MongoDB. Foi desenvolvido baseado no protocolo oficial GV50 @Track Air Interface Protocol V4.01 e implementado conforme documentação GV50 User Manual para modo TCP Long-Connection.
 
 ## User Preferences
 
@@ -14,12 +14,15 @@ Clean Code: Usar apenas campos essenciais, remover classes/arquivos não utiliza
 
 Serviço Python standalone com arquitetura assíncrona:
 
-### TCP Service Architecture
+### TCP Service Architecture - Long-Connection Mode
 - **Language**: Python com asyncio para conexões concorrentes
+- **Connection Mode**: Long-Connection persistente conforme documentação GV50
 - **Database**: MongoDB para armazenamento de dados GPS
 - **Protocol**: Parser personalizado do protocolo GV50 GPS
-- **Concurrency**: Servidor TCP assíncrono tratando múltiplas conexões de dispositivos
+- **Concurrency**: Servidor TCP assíncrono mantendo conexões persistentes
 - **Commands**: Sistema de comandos para controle bidirecional dos dispositivos
+- **Heartbeat**: Sistema de heartbeat automático para manter conexões vivas
+- **Cleanup**: Task automática de limpeza de conexões inativas
 
 ## Key Components
 
@@ -48,14 +51,17 @@ Sistema simplificado para receber dados GPS e gerenciar comandos de bloqueio/des
 - Atualiza status online/offline dos dispositivos
 - Mantém histórico de última atividade
 
-## Data Flow (Simplificado)
+## Data Flow Long-Connection (Otimizado)
 
-1. **Dispositivo GPS conecta** → Servidor TCP recebe dados via protocolo GV50
-2. **Salva dados GPS** → Insere na coleção `dados_veiculo` 
-3. **Atualiza veículo** → Insere/atualiza na coleção `veiculo`
-4. **Verifica comandos** → Campo `comandoBloqueo` (True/False/None)
-5. **Envia comando** → AT+GTOUT para bloquear/desbloquear dispositivo
-6. **Limpa comando** → Define `comandoBloqueo = None` após envio
+1. **Dispositivo GPS conecta** → Estabelece long-connection persistente via TCP
+2. **Mantém conexão ativa** → Heartbeat automático a cada 5 min
+3. **Múltiplas mensagens** → Recebe dados GPS na mesma conexão continuamente
+4. **Salva dados GPS** → Insere na coleção `dados_veiculo` em tempo real
+5. **Atualiza veículo** → Insere/atualiza na coleção `veiculo`
+6. **Verifica comandos** → Campos `comandoBloqueo` e `comandoTrocarIP`
+7. **Envia comandos** → AT+GTOUT (bloqueio) e AT+GTSRI (trocar IP) imediatamente
+8. **Cleanup automático** → Remove conexões inativas após 30 min
+9. **ACK imediato** → Confirma cada mensagem GPS recebida
 
 ## External Dependencies
 
