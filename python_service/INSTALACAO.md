@@ -195,48 +195,14 @@ asyncio.run(test())
 "
 ```
 
-## 🔧 Passo 9: Configurar Firewall (IMPORTANTE!)
-
-**Este é provavelmente o motivo dos dispositivos não conectarem!**
+## 🔧 Passo 9: Firewall (se necessário)
 
 ```bash
-# Para Ubuntu/Debian (UFW):
+# Permitir porta TCP 8000
 sudo ufw allow 8000/tcp
-sudo ufw reload
 
-# Para CentOS/RHEL (firewalld):
-sudo firewall-cmd --permanent --add-port=8000/tcp
-sudo firewall-cmd --reload
-
-# Verificar se porta está liberada
-sudo ufw status  # Ubuntu
-sudo firewall-cmd --list-ports  # CentOS
-```
-
-## 🔍 Passo 10: Diagnóstico de Conectividade
-
-```bash
-# Executar diagnóstico automático
-./diagnostico_conectividade.sh
-```
-
-Este script verificará:
-- ✅ Se o serviço está rodando
-- ✅ Se a porta 8000 está escutando  
-- ✅ Se o firewall está bloqueando
-- ✅ Conexão local funciona
-- ✅ IP público do servidor
-
-## 📱 Passo 11: Configurar Dispositivo GV50
-
-Veja o arquivo `CONFIGURACAO_DISPOSITIVO.md` para comandos SMS completos.
-
-**Configuração rápida via SMS:**
-```
-# Substitua 191.252.181.49 pelo IP real do seu servidor
-AT+GTSRI=gv50,123456,0,191.252.181.49,8000,0,,,,,FFFF$
-AT+GTBSI=gv50,0,zap.vivo.com.br,vivo,vivo,,,,FFFF$
-AT+GTRST=gv50,0,,,FFFF$
+# Verificar regras
+sudo ufw status
 ```
 
 ## 📝 Logs e Monitoramento
