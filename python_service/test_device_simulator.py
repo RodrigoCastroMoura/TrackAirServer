@@ -9,7 +9,7 @@ import time
 from datetime import datetime
 
 class GPSDeviceSimulator:
-    def __init__(self, host='localhost', port=8000):
+    def __init__(self, host='191.252.181.49', port=8000):
         self.host = host
         self.port = port
         self.socket = None
