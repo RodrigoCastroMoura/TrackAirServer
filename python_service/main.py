@@ -22,9 +22,9 @@ class GPSService:
         """Inicia o serviço GPS."""
         self.running = True
         logger.info("=== INICIANDO SERVIÇO GPS GV50 - LONG CONNECTION MODE ===")
-        logger.info("Sistema simplificado: DadosVeiculo + Veiculo")
+        logger.info("Sistema ultra-simplificado: apenas DadosVeiculo (dados do dispositivo)")
         logger.info("Modo: TCP Long-Connection conforme documentação GV50")
-        logger.info("Funcionalidades: Recebe dados GPS, gerencia bloqueio/desbloqueio e conexões persistentes")
+        logger.info("Funcionalidade: Recebe e armazena dados do dispositivo GPS com conexões persistentes")
         
         try:
             await tcp_server.start_server()
