@@ -27,10 +27,11 @@ Serviço Python standalone com arquitetura assíncrona:
 ## Key Components
 
 ### Database Schema (Clean Code)
-O sistema usa MongoDB com apenas 1 coleção essencial:
+O sistema usa MongoDB com 2 coleções essenciais:
 - **DadosVeiculo**: Dados do dispositivo GPS (IMEI, longitude, latitude, altitude, speed, ignicao, dataDevice, data)
+- **Veiculo**: Controle de comandos (IMEI, ds_placa, ds_modelo, comandoBloqueo, bloqueado, ignicao, comandoTrocarIP)
 
-Sistema ultra-simplificado para receber e armazenar dados do dispositivo GPS apenas.
+Sistema simplificado para receber dados GPS e gerenciar comandos de bloqueio/desbloqueio e troca de IP.
 
 ### GPS Protocol Handler
 - Analisa mensagens GPS recebidas (protocolos +RESP, +BUFF, +ACK)
@@ -58,9 +59,12 @@ Sistema ultra-simplificado para receber e armazenar dados do dispositivo GPS ape
 2. **Mantém conexão ativa** → Heartbeat automático a cada 5 min
 3. **Múltiplas mensagens** → Recebe dados GPS na mesma conexão continuamente
 4. **Processa eventos** → GTFRI (dados), GTIGN (ignição ON), GTIGF (ignição OFF)
-5. **Salva dados GPS** → Insere na coleção `dados_veiculo` apenas (dados do dispositivo)
-6. **Cleanup automático** → Remove conexões inativas após 30 min
-7. **ACK específico** → Confirma cada mensagem com ACK apropriado (+SACK:GTFRI, +SACK:GTIGN, etc.)
+5. **Salva dados GPS** → Insere na coleção `dados_veiculo` (dados do dispositivo)
+6. **Atualiza veículo** → Insere/atualiza na coleção `veiculo` (controle de comandos)
+7. **Verifica comandos** → Campos `comandoBloqueo` e `comandoTrocarIP`
+8. **Envia comandos** → AT+GTOUT (bloqueio) e AT+GTSRI (trocar IP) imediatamente
+9. **Cleanup automático** → Remove conexões inativas após 30 min
+10. **ACK específico** → Confirma cada mensagem com ACK apropriado (+SACK:GTFRI, +SACK:GTIGN, etc.)
 
 ## External Dependencies
 
