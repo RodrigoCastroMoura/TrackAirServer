@@ -1,78 +1,81 @@
-# Serviço GPS GV50 - Clean Code
+# Serviço GPS GV50
 
-Serviço Python TCP simplificado para dispositivos GPS GV50.
+Sistema Python TCP para comunicação com dispositivos GPS GV50 em modo Long-Connection.
 
-## Estrutura Clean Code
+## 🎯 Características
 
-### Apenas 2 Tabelas MongoDB:
+- **TCP Long-Connection** com dispositivos GPS GV50
+- **Protocolo GV50 oficial** conforme documentação V4.01
+- **MongoDB** para armazenamento de dados
+- **Detecção de ignição** em tempo real (GTIGN/GTIGF)
+- **Comandos bidirecionais** (bloqueio/desbloqueio/troca IP)
+- **Múltiplas conexões** simultâneas
+- **Sistema de logs** completo
+- **Heartbeat automático** para manter conexões vivas
 
-**DadosVeiculo**: Armazena dados GPS recebidos
-- IMEI, longitude, latitude, altitude, speed, ignicao, dataDevice
+## 📊 Dados Processados
 
-**Veiculo**: Controla bloqueio/desbloqueio e configuração IP (campos essenciais)
-- IMEI, ds_placa, ds_modelo, comandoBloqueo, bloqueado, comandoTrocarIP, ignicao
+### Coleção `dados_veiculo` (dados do dispositivo):
+- IMEI, longitude, latitude, altitude
+- Velocidade, status de ignição
+- Timestamps do dispositivo e recebimento
 
-## Como Usar
+### Coleção `veiculo` (controle de comandos):
+- Comandos de bloqueio/desbloqueio
+- Comandos de troca de IP
+- Status atual dos dispositivos
 
-### 1. Instalar dependências:
+## 🚀 Instalação Rápida
+
 ```bash
+# Ver documentação completa
+cat INSTALACAO.md
+
+# Instalação básica
+git clone <repo-url> && cd python_service
+python3 -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-```
-
-### 2. Configurar MongoDB e IPs (.env):
-```bash
-MONGODB_URL=mongodb+srv://...
-MONGODB_DATABASE=gps_tracking_service
-TCP_HOST=0.0.0.0
-TCP_PORT=8000
-
-# Configuração de IPs para dispositivos
-NEW_SERVER_IP=192.168.1.100
-NEW_SERVER_PORT=8000
-BACKUP_SERVER_IP=192.168.1.101
-BACKUP_SERVER_PORT=8000
-```
-
-### 3. Testar conexão:
-```bash
-python test_connection.py
-```
-
-### 4. Executar serviço:
-```bash
+cp .env.example .env  # configurar variáveis
 python main.py
 ```
 
-## Funcionalidades
+## 🔧 Configuração
 
-- ✅ Recebe dados GPS via TCP
-- ✅ Salva no MongoDB (2 tabelas)
-- ✅ Verifica comandos de bloqueio/desbloqueio
-- ✅ Configura novos IPs dos dispositivos
-- ✅ Envia comandos AT via protocolo GV50
-- ✅ API para controle externo
-
-## API de Comandos
-
-```python
-from command_api import CommandAPI
-
-# Bloquear veículo
-await CommandAPI.bloquear_veiculo("IMEI")
-
-# Desbloquear veículo  
-await CommandAPI.desbloquear_veiculo("IMEI")
-
-# Trocar IP do dispositivo
-await CommandAPI.trocar_ip_dispositivo("IMEI")
-
-# Ver status
-status = await CommandAPI.status_veiculo("IMEI")
+Arquivo `.env`:
+```bash
+MONGODB_URI=mongodb://localhost:27017
+DATABASE_NAME=gps_tracking
+TCP_PORT=8000
+TCP_HOST=0.0.0.0
+NEW_SERVER_IP=191.252.181.49
 ```
 
-## Fluxo Simplificado
+## 📡 Protocolo GV50
 
-1. Dispositivo GPS → Conecta TCP → Envia dados
-2. Servidor → Salva `DadosVeiculo` → Atualiza `Veiculo`  
-3. Verifica `comandoBloqueo` e `comandoTrocarIP` → Envia comandos se pendentes
-4. Limpa comandos → Atualiza status após envio
+Mensagens suportadas:
+- **GTFRI**: dados GPS regulares
+- **GTIGN**: evento ignição ligada  
+- **GTIGF**: evento ignição desligada
+- **GTOUT**: comandos de bloqueio
+- **GTSRI**: comandos de troca de IP
+
+## 🚗 Comandos de Controle
+
+```javascript
+// Bloquear veículo
+db.veiculo.updateOne({IMEI: "123456789"}, {$set: {comandoBloqueo: true}})
+
+// Desbloquear veículo  
+db.veiculo.updateOne({IMEI: "123456789"}, {$set: {comandoBloqueo: false}})
+
+// Trocar IP
+db.veiculo.updateOne({IMEI: "123456789"}, {$set: {comandoTrocarIP: true}})
+```
+
+## 📚 Documentação
+
+- **`INSTALACAO.md`** - Guia completo de instalação e atualização
+- **Logs** - `logs/gps_service.log`
+- **Configuração** - arquivo `.env`
+
+Sistema pronto para produção no servidor 191.252.181.49!

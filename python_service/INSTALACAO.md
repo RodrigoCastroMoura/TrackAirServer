@@ -1,257 +1,354 @@
-# 🚀 Instalação e Teste do Serviço GPS GV50
+# Serviço GPS GV50 - Instalação e Atualização
 
-## 📋 Requisitos do Servidor
+Sistema TCP Python para comunicação com dispositivos GPS GV50 em modo Long-Connection.
 
-- **Linux** (Ubuntu/CentOS/Debian)
-- **Python 3.11+** instalado
-- **Conexão à internet** para MongoDB Atlas
-- **Porta TCP 8000** disponível para dispositivos GPS
+## 📋 Pré-requisitos
 
-## 🔧 Passo 1: Preparar o Servidor
+- **Servidor Linux** (Ubuntu 18.04+ / CentOS 7+ recomendado)
+- **Python 3.8+**
+- **MongoDB 4.4+**
+- **Git**
+- **Acesso root/sudo**
+
+---
+
+## 🚀 Instalação Inicial
+
+### 1. Preparar o Ambiente
 
 ```bash
 # Atualizar sistema
 sudo apt update && sudo apt upgrade -y
 
-# Instalar Python e pip
-sudo apt install python3 python3-pip python3-venv -y
+# Instalar dependências do sistema
+sudo apt install -y python3 python3-pip python3-venv git mongodb
 
-# Verificar versão
-python3 --version
+# Iniciar MongoDB
+sudo systemctl start mongodb
+sudo systemctl enable mongodb
 ```
 
-## 📦 Passo 2: Instalar o Serviço
+### 2. Clonar e Configurar o Projeto
 
 ```bash
-# Criar diretório para o serviço
-mkdir /opt/gps_service
-cd /opt/gps_service
-
-# Copiar todos os arquivos do python_service para aqui
-# (você pode usar scp, rsync ou git)
+# Clonar repositório
+cd /opt
+sudo git clone <repository-url> gps-gv50
+sudo chown -R $USER:$USER /opt/gps-gv50
+cd /opt/gps-gv50/python_service
 
 # Criar ambiente virtual
 python3 -m venv venv
 source venv/bin/activate
 
-# Instalar dependências
-pip install motor pydantic pydantic-settings python-dotenv
+# Instalar dependências Python
+pip install -r requirements.txt
+```
+
+### 3. Configurar Variáveis de Ambiente
+
+```bash
+# Criar arquivo de configuração
+cat > .env << EOF
+# MongoDB Configuration
+MONGODB_URI=mongodb://localhost:27017
+DATABASE_NAME=gps_tracking
+
+# TCP Server Configuration  
+TCP_PORT=8000
+TCP_HOST=0.0.0.0
+
+# Logging Configuration
+LOG_LEVEL=INFO
+LOG_FILE=logs/gps_service.log
+
+# Server Configuration (opcional para troca de IP)
+NEW_SERVER_IP=191.252.181.49
+NEW_SERVER_PORT=8000
+BACKUP_SERVER_IP=191.252.181.49
+BACKUP_SERVER_PORT=8001
+EOF
 
 # Criar diretório de logs
-mkdir logs
+mkdir -p logs
 ```
 
-## ⚙️ Passo 3: Configurar Variáveis
-
-Edite o arquivo `.env`:
-```bash
-nano .env
-```
-
-Verifique se tem:
-```env
-# MongoDB Atlas - SUA STRING DE CONEXÃO
-MONGODB_URL=mongodb+srv://docsmartuser:hk9D7DSnyFlcPmKL@cluster0.qats6.mongodb.net/
-
-# Configurações TCP
-TCP_HOST=0.0.0.0
-TCP_PORT=8000
-
-# IPs para comandos de troca (configure conforme sua rede)
-NEW_SERVER_IP=192.168.1.100
-NEW_SERVER_PORT=8000
-BACKUP_SERVER_IP=192.168.1.101
-BACKUP_SERVER_PORT=8000
-```
-
-## 🧪 Passo 4: Testar Conexão
+### 4. Configurar MongoDB
 
 ```bash
-# Ativar ambiente virtual
-source venv/bin/activate
+# Conectar ao MongoDB
+mongo
 
-# Testar MongoDB
-python test_connection.py
+# Criar banco de dados e índices
+use gps_tracking
+
+# Criar índices para performance
+db.dados_veiculo.createIndex({IMEI: 1, data: -1})
+db.dados_veiculo.createIndex({data: -1})
+db.veiculo.createIndex({IMEI: 1})
+
+# Sair do MongoDB
+exit
 ```
 
-**Saída esperada:**
-```
-✓ Conectado ao MongoDB
-✓ Dados GPS inseridos
-✓ Veículo criado/atualizado
-✅ TODOS OS TESTES PASSARAM!
-```
+### 5. Configurar como Serviço Systemd
 
-## 🚀 Passo 5: Executar o Serviço
-
-### Execução manual (para teste):
 ```bash
-# Ativar ambiente virtual
-source venv/bin/activate
-
-# Executar serviço
-python main.py
-```
-
-**Saída esperada:**
-```
-2025-07-20 17:00:00 - main - INFO - Iniciando servidor TCP GPS na porta 8000
-2025-07-20 17:00:00 - main - INFO - Servidor pronto para receber dispositivos GPS
-```
-
-### Execução como serviço (produção):
-```bash
-# Criar arquivo de serviço systemd
-sudo nano /etc/systemd/system/gps-service.service
-```
-
-Conteúdo do arquivo:
-```ini
+# Criar arquivo de serviço
+sudo cat > /etc/systemd/system/gps-gv50.service << EOF
 [Unit]
-Description=GPS GV50 Tracking Service
-After=network.target
+Description=GPS GV50 TCP Service
+After=network.target mongodb.service
+Requires=mongodb.service
 
 [Service]
 Type=simple
-User=root
-WorkingDirectory=/opt/gps_service
-Environment=PATH=/opt/gps_service/venv/bin
-ExecStart=/opt/gps_service/venv/bin/python main.py
+User=$USER
+Group=$USER
+WorkingDirectory=/opt/gps-gv50/python_service
+Environment=PATH=/opt/gps-gv50/python_service/venv/bin
+ExecStart=/opt/gps-gv50/python_service/venv/bin/python main.py
 Restart=always
-RestartSec=3
+RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
-```
+EOF
 
-Ativar o serviço:
-```bash
-# Recarregar systemd
+# Recarregar systemd e iniciar serviço
 sudo systemctl daemon-reload
-
-# Ativar serviço
-sudo systemctl enable gps-service
-
-# Iniciar serviço
-sudo systemctl start gps-service
-
-# Verificar status
-sudo systemctl status gps-service
+sudo systemctl enable gps-gv50
+sudo systemctl start gps-gv50
 ```
 
-## 🔍 Passo 6: Testar com Dispositivo Simulado
+### 6. Verificar Instalação
 
 ```bash
-# Em outro terminal, simular dispositivo GPS
-telnet localhost 8000
+# Verificar status do serviço
+sudo systemctl status gps-gv50
 
-# Enviar mensagem de teste:
-+RESP:GTFRI,060228,123456789012345,,0,0,1,1,4.3,92,70.0,-46.633308,-23.550520,20241221163000,0460,0000,18d8,6141,00,2000.0,20241221163000,11F0$
+# Verificar logs em tempo real
+tail -f logs/gps_service.log
+
+# Verificar se porta está escutando
+sudo netstat -tlnp | grep :8000
 ```
 
-**No log do serviço deve aparecer:**
-```
-INFO - Nova conexão de dispositivo: 127.0.0.1:xxxxx
-INFO - Dados inseridos para IMEI 123456789012345
-INFO - Enviando ACK para dispositivo
-```
+---
 
-## 📊 Passo 7: Verificar Dados no MongoDB
+## 🔄 Atualização do Sistema
+
+### Atualização Simples (mesma versão)
 
 ```bash
-# Testar busca de dados
-python -c "
-import asyncio
-from mongodb_client import mongodb_client
+# Parar serviço
+sudo systemctl stop gps-gv50
 
-async def test():
-    await mongodb_client.connect()
-    dados = await mongodb_client.buscar_dados_veiculo('123456789012345', limit=1)
-    print('Dados encontrados:', dados)
-    await mongodb_client.disconnect()
+# Navegar para diretório
+cd /opt/gps-gv50
 
-asyncio.run(test())
-"
+# Fazer backup da configuração
+cp python_service/.env python_service/.env.backup
+
+# Atualizar código
+git pull origin main
+
+# Ativar ambiente virtual
+cd python_service
+source venv/bin/activate
+
+# Atualizar dependências (se necessário)
+pip install -r requirements.txt
+
+# Restaurar configuração se necessário
+cp .env.backup .env
+
+# Reiniciar serviço
+sudo systemctl start gps-gv50
+sudo systemctl status gps-gv50
 ```
 
-## 🎮 Passo 8: Testar Comandos
+### Atualização com Mudanças de Banco (versão maior)
 
 ```bash
-# Testar comando de bloqueio
-python -c "
-import asyncio
-from command_api import CommandAPI
+# Parar serviço
+sudo systemctl stop gps-gv50
 
-async def test():
-    # Bloquear dispositivo
-    await CommandAPI.bloquear_veiculo('123456789012345')
-    print('Comando de bloqueio definido')
-    
-    # Ver status
-    status = await CommandAPI.status_veiculo('123456789012345')
-    print('Status:', status)
+# Fazer backup completo do banco
+mongodump --db gps_tracking --out /backup/mongodb/$(date +%Y%m%d_%H%M%S)
 
-asyncio.run(test())
-"
+# Atualizar código
+cd /opt/gps-gv50
+git pull origin main
+
+# Verificar mudanças no banco
+cd python_service
+source venv/bin/activate
+
+# Executar migrações se existirem
+# python migrations.py (se aplicável)
+
+# Reiniciar serviço
+sudo systemctl start gps-gv50
+
+# Verificar funcionamento
+tail -f logs/gps_service.log
 ```
 
-## 🔧 Passo 9: Firewall (se necessário)
+---
+
+## 🔧 Comandos Úteis
+
+### Gerenciamento do Serviço
+```bash
+# Iniciar
+sudo systemctl start gps-gv50
+
+# Parar  
+sudo systemctl stop gps-gv50
+
+# Reiniciar
+sudo systemctl restart gps-gv50
+
+# Ver status
+sudo systemctl status gps-gv50
+
+# Ver logs
+sudo journalctl -u gps-gv50 -f
+```
+
+### Monitoramento
+```bash
+# Logs do sistema
+tail -f logs/gps_service.log
+
+# Conexões ativas
+sudo netstat -an | grep :8000
+
+# Processos Python
+ps aux | grep python
+
+# Uso de recursos
+htop
+```
+
+### MongoDB
+```bash
+# Conectar ao banco
+mongo gps_tracking
+
+# Ver dispositivos conectados
+db.veiculo.find().pretty()
+
+# Ver últimos dados GPS
+db.dados_veiculo.find().sort({data: -1}).limit(10).pretty()
+
+# Contar registros
+db.dados_veiculo.count()
+```
+
+---
+
+## 🚗 Comandos de Controle
+
+### Bloquear Veículo
+```javascript
+db.veiculo.updateOne(
+  {IMEI: "555444333222111"}, 
+  {$set: {comandoBloqueo: true}}
+)
+```
+
+### Desbloquear Veículo
+```javascript
+db.veiculo.updateOne(
+  {IMEI: "555444333222111"}, 
+  {$set: {comandoBloqueo: false}}
+)
+```
+
+### Trocar IP do Dispositivo
+```javascript
+db.veiculo.updateOne(
+  {IMEI: "555444333222111"}, 
+  {$set: {comandoTrocarIP: true}}
+)
+```
+
+---
+
+## 🔥 Firewall e Segurança
 
 ```bash
-# Permitir porta TCP 8000
+# Abrir porta 8000 para dispositivos GPS
 sudo ufw allow 8000/tcp
 
-# Verificar regras
+# Restringir acesso MongoDB (apenas local)
+sudo ufw deny 27017
+
+# Ver status do firewall
 sudo ufw status
 ```
 
-## 📝 Logs e Monitoramento
+---
 
+## ❌ Solução de Problemas
+
+### Serviço não inicia
 ```bash
-# Ver logs do serviço
-sudo journalctl -u gps-service -f
+# Verificar logs detalhados
+sudo journalctl -u gps-gv50 --no-pager
 
-# Ver logs do arquivo
-tail -f /opt/gps_service/logs/gps_service.log
+# Verificar MongoDB
+sudo systemctl status mongodb
 
-# Verificar se porta está aberta
-netstat -tlnp | grep :8000
+# Testar manualmente
+cd /opt/gps-gv50/python_service
+source venv/bin/activate
+python main.py
 ```
 
-## 🆘 Solução de Problemas
-
-### Erro de conexão MongoDB:
-- Verificar string de conexão no `.env`
-- Testar: `python test_connection.py`
-
-### Porta 8000 ocupada:
+### Porta ocupada
 ```bash
-# Ver quem está usando
+# Encontrar processo usando porta 8000
 sudo lsof -i :8000
 
 # Matar processo se necessário
-sudo kill -9 PID
+sudo kill -9 <PID>
 ```
 
-### Permissões:
+### Problemas de conexão MongoDB
 ```bash
-# Dar permissões corretas
-sudo chown -R $USER:$USER /opt/gps_service
-chmod +x main.py
+# Reiniciar MongoDB
+sudo systemctl restart mongodb
+
+# Verificar se está rodando
+sudo systemctl status mongodb
+
+# Testar conexão
+mongo --eval "db.adminCommand('ismaster')"
 ```
 
-### Reiniciar serviço:
-```bash
-sudo systemctl restart gps-service
-sudo systemctl status gps-service
+---
+
+## 📊 Estrutura do Projeto
+
+```
+/opt/gps-gv50/
+├── python_service/
+│   ├── main.py              # Entrada principal
+│   ├── tcp_server.py        # Servidor TCP
+│   ├── protocol_parser.py   # Parser GV50
+│   ├── mongodb_client.py    # Cliente MongoDB
+│   ├── models.py           # Modelos de dados
+│   ├── config.py           # Configurações
+│   ├── logger.py           # Sistema de logs
+│   ├── command_api.py      # API de comandos
+│   ├── requirements.txt    # Dependências
+│   ├── .env               # Configuração
+│   ├── logs/              # Logs do sistema
+│   └── venv/              # Ambiente virtual
+└── README.md
 ```
 
-## ✅ Verificação Final
-
-1. **MongoDB conectado** ✓
-2. **Servidor TCP rodando** na porta 8000 ✓  
-3. **Dispositivo simulado** se conecta ✓
-4. **Dados salvos** no MongoDB ✓
-5. **Comandos funcionando** ✓
-
-🎯 **Seu serviço GPS está pronto para receber dispositivos GV50!**
+Sistema pronto para produção em servidor Linux!
