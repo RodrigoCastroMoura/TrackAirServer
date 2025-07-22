@@ -240,24 +240,14 @@ mongo gps_tracking
 # Ver dispositivos conectados
 db.veiculo.find().pretty()
 
-# Ver últimos dados GPS (todos os protocolos)
+# Ver últimos dados GPS
 db.dados_veiculo.find().sort({data: -1}).limit(10).pretty()
 
-# Ver por tipo de protocolo
-db.dados_veiculo.find({protocol_type: "GTFRI"}).limit(5).pretty()  # Dados regulares
-db.dados_veiculo.find({protocol_type: "GTIGN"}).limit(5).pretty()  # Eventos ignição ON
-db.dados_veiculo.find({protocol_type: "GTIGL"}).limit(5).pretty()  # Alertas bateria
-
-# Ver eventos específicos
-db.dados_veiculo.find({evento_ignicao: true}).sort({data: -1}).pretty()  # Eventos ignição
-db.dados_veiculo.find({comando_executado: {$exists: true}}).pretty()    # Comandos executados
-db.dados_veiculo.find({bateria_baixa: true}).sort({data: -1}).pretty()  # Alertas bateria
-
-# Ver status de bateria na coleção veiculo
+# Ver status de bateria
 db.veiculo.find({bateria_baixa: true}).pretty()
 
-# Contar por protocolo
-db.dados_veiculo.aggregate([{$group: {_id: "$protocol_type", count: {$sum: 1}}}])
+# Contar registros
+db.dados_veiculo.count()
 ```
 
 ---

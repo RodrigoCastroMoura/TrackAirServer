@@ -15,12 +15,10 @@ Sistema Python TCP para comunicação com dispositivos GPS GV50 em modo Long-Con
 
 ## 📊 Dados Processados
 
-### Coleção `dados_veiculo` (todos os protocolos GPS):
-- IMEI, longitude, latitude, altitude, velocidade
-- Status de ignição, timestamps do dispositivo
-- Tipo de protocolo (GTFRI, GTIGN, GTIGF, GTIGL, GTOUT, GTSRI, GTBSI)
-- Mensagem original completa (raw_message)
-- Dados específicos: bateria, eventos, comandos, info celular
+### Coleção `dados_veiculo` (dados do dispositivo):
+- IMEI, longitude, latitude, altitude
+- Velocidade, status de ignição
+- Timestamps do dispositivo e recebimento
 
 ### Coleção `veiculo` (controle de comandos):
 - Comandos de bloqueio/desbloqueio
@@ -95,21 +93,6 @@ db.veiculo.find({bateria_baixa: true}).pretty()
 
 // Histórico de alertas
 db.veiculo.find({ultimo_alerta_bateria: {$exists: true}}).sort({ultimo_alerta_bateria: -1})
-
-// Ver todos protocolos por IMEI
-db.dados_veiculo.find({IMEI: "123456789"}).sort({data: -1})
-
-// Ver apenas alertas de bateria baixa
-db.dados_veiculo.find({protocol_type: "GTIGL"}).sort({data: -1})
-
-// Ver eventos de ignição
-db.dados_veiculo.find({$or: [{protocol_type: "GTIGN"}, {protocol_type: "GTIGF"}]}).sort({data: -1})
-
-// Ver comandos executados
-db.dados_veiculo.find({comando_executado: {$exists: true}}).sort({data: -1})
-
-// Contar registros por tipo
-db.dados_veiculo.aggregate([{$group: {_id: "$protocol_type", count: {$sum: 1}}}])
 ```
 
 Sistema executa comandos automaticamente quando dispositivo envia próxima mensagem GPS.
