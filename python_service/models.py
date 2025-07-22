@@ -24,6 +24,4 @@ class Veiculo(BaseModel):
     bloqueado: Optional[bool] = False  # Status atual de bloqueio
     comandoTrocarIP: Optional[bool] = None  # True = comando para trocar IP pendente
     ignicao: bool = False  # Status da ignição
-    tempo_parado_iniciado: Optional[datetime] = None  # Quando começou a parada com ignição OFF
-    alertado_parada_prolongada: bool = False  # Se já foi alertado sobre parada
     ts_user_manu: Optional[datetime] = Field(default_factory=datetime.utcnow)  # Última atualização
