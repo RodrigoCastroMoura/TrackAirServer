@@ -65,11 +65,17 @@ class GPSDeviceHandler:
                         # Salvar dados GPS no MongoDB
                         await self.save_gps_data(parsed, message)
                         
+                        # Log eventos especiais de ignição
+                        if parsed.get('ignition_event'):
+                            ignition_status = "LIGADA" if parsed.get('ignition') else "DESLIGADA"
+                            logger.info(f"🔥 Evento ignição {ignition_status}: IMEI={parsed['imei']}")
+                        
                         # Verificar comandos pendentes (crítico para long-connection)
                         await self.check_pending_commands(imei, writer)
                         
-                        # Enviar ACK
-                        await self.send_ack(writer, parsed.get('number', '0000'))
+                        # Enviar ACK específico para o tipo de comando
+                        command_type = parsed.get('command_type', 'GTFRI')
+                        await self.send_ack(writer, parsed.get('number', '0000'), command_type)
                     
                     # Heartbeat implícito - qualquer mensagem mantém conexão viva
                     if device_info:
@@ -200,10 +206,10 @@ class GPSDeviceHandler:
         except Exception as e:
             logger.error(f"Erro ao enviar comando de IP para {imei}: {e}")
             
-    async def send_ack(self, writer: asyncio.StreamWriter, number: str):
+    async def send_ack(self, writer: asyncio.StreamWriter, number: str, command_type: str = "GTFRI"):
         """Envia ACK para o dispositivo."""
         try:
-            ack_message = create_ack_message(number)
+            ack_message = create_ack_message(number, command_type)
             writer.write(ack_message.encode('utf-8'))
             await writer.drain()
             logger.debug(f"ACK enviado: {ack_message}")

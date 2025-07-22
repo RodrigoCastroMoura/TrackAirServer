@@ -35,9 +35,11 @@ Sistema simplificado para receber dados GPS e gerenciar comandos de bloqueio/des
 
 ### GPS Protocol Handler
 - Analisa mensagens GPS recebidas (protocolos +RESP, +BUFF, +ACK)
-- Suporte a vários tipos de comando (GTFRI, GTIGN, GTIGF, GTOUT, GTSRI, GTBSI)
+- Suporte completo a comandos: GTFRI, GTIGN, GTIGF, GTIGL, GTOUT, GTSRI, GTBSI
+- Processa eventos de ignição em tempo real (GTIGN=ligada, GTIGF=desligada)
 - Gerencia comunicação bidirecional com dispositivos GPS
 - Controla estados de conexão e timeouts dos dispositivos
+- ACK específico para cada tipo de comando (+SACK:GTFRI, +SACK:GTIGN, etc.)
 
 ### Command System
 - Gerenciamento de comandos baseado em fila para dispositivos GPS
@@ -56,12 +58,13 @@ Sistema simplificado para receber dados GPS e gerenciar comandos de bloqueio/des
 1. **Dispositivo GPS conecta** → Estabelece long-connection persistente via TCP
 2. **Mantém conexão ativa** → Heartbeat automático a cada 5 min
 3. **Múltiplas mensagens** → Recebe dados GPS na mesma conexão continuamente
-4. **Salva dados GPS** → Insere na coleção `dados_veiculo` em tempo real
-5. **Atualiza veículo** → Insere/atualiza na coleção `veiculo`
-6. **Verifica comandos** → Campos `comandoBloqueo` e `comandoTrocarIP`
-7. **Envia comandos** → AT+GTOUT (bloqueio) e AT+GTSRI (trocar IP) imediatamente
-8. **Cleanup automático** → Remove conexões inativas após 30 min
-9. **ACK imediato** → Confirma cada mensagem GPS recebida
+4. **Processa eventos** → GTFRI (dados), GTIGN (ignição ON), GTIGF (ignição OFF)
+5. **Salva dados GPS** → Insere na coleção `dados_veiculo` em tempo real
+6. **Atualiza veículo** → Insere/atualiza na coleção `veiculo` (inclui status ignição)
+7. **Verifica comandos** → Campos `comandoBloqueo` e `comandoTrocarIP`
+8. **Envia comandos** → AT+GTOUT (bloqueio) e AT+GTSRI (trocar IP) imediatamente
+9. **Cleanup automático** → Remove conexões inativas após 30 min
+10. **ACK específico** → Confirma cada mensagem com ACK apropriado (+SACK:GTFRI, +SACK:GTIGN, etc.)
 
 ## External Dependencies
 
