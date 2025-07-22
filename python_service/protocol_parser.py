@@ -78,20 +78,60 @@ def parse_gv50_message(raw_message: str) -> Optional[Dict]:
         elif command_type == 'GTIGL':
             # Evento de bateria baixa (Low External Power)
             if len(parts) >= 13:
-                # GTIGL: Protocolo para bateria baixa do veículo
-                parsed['battery_voltage'] = parts[5] if len(parts) > 5 else '0'  # Voltagem da bateria
-                parsed['battery_low'] = 'true'  # Marca que bateria está baixa
+                parsed['battery_voltage'] = parts[5] if len(parts) > 5 else '0'
+                parsed['battery_low'] = 'true'
                 parsed['longitude'] = parts[10] if len(parts) > 10 else '0'
                 parsed['latitude'] = parts[11] if len(parts) > 11 else '0'
                 parsed['device_time'] = parts[12] if len(parts) > 12 else ''
-                parsed['speed'] = '0'  # Geralmente parado quando bateria baixa
+                parsed['speed'] = '0'
                 parsed['altitude'] = parts[9] if len(parts) > 9 else '0'
-                parsed['ignition'] = 'false'  # Provavelmente desligado se bateria baixa
+                parsed['ignition'] = 'false'
             logger.warning(f"🔋 ALERTA BATERIA BAIXA: IMEI={parsed['imei']}, Voltagem={parsed.get('battery_voltage', 'N/A')}V")
             
+        elif command_type == 'GTOUT':
+            # Comando de controle de saída (bloqueio/desbloqueio)
+            if len(parts) >= 5:
+                parsed['comando_executado'] = 'BLOQUEIO' if parts[3] == '0' else 'DESBLOQUEIO'
+                parsed['longitude'] = '0'  # Comandos não têm coordenadas
+                parsed['latitude'] = '0'
+                parsed['device_time'] = parts[-2] if len(parts) > 1 else ''
+                parsed['speed'] = '0'
+                parsed['altitude'] = '0'
+            logger.info(f"📡 COMANDO GTOUT executado: IMEI={parsed['imei']}, Ação={parsed.get('comando_executado', 'N/A')}")
+            
+        elif command_type == 'GTSRI':
+            # Comando de configuração de servidor
+            if len(parts) >= 5:
+                parsed['comando_executado'] = 'CONFIGURACAO_IP'
+                parsed['longitude'] = '0'
+                parsed['latitude'] = '0'
+                parsed['device_time'] = parts[-2] if len(parts) > 1 else ''
+                parsed['speed'] = '0'
+                parsed['altitude'] = '0'
+            logger.info(f"📡 COMANDO GTSRI executado: IMEI={parsed['imei']}, Configuração IP")
+            
+        elif command_type == 'GTBSI':
+            # Informações de estação base (torre celular)
+            if len(parts) >= 10:
+                parsed['cell_id'] = parts[5] if len(parts) > 5 else '0'
+                parsed['lac_code'] = parts[6] if len(parts) > 6 else '0'
+                # Coordenadas aproximadas baseadas em célula
+                parsed['longitude'] = parts[8] if len(parts) > 8 else '0'
+                parsed['latitude'] = parts[9] if len(parts) > 9 else '0'
+                parsed['device_time'] = parts[10] if len(parts) > 10 else ''
+                parsed['speed'] = '0'
+                parsed['altitude'] = '0'
+                parsed['ignition'] = 'false'
+            logger.info(f"📶 INFO CELULAR: IMEI={parsed['imei']}, Cell ID={parsed.get('cell_id', 'N/A')}")
+            
         else:
-            # Outros tipos (GTOUT, GTSRI, GTBSI)
-            logger.debug(f"Mensagem de comando/resposta: {command_type}")
+            # Outros tipos não reconhecidos
+            logger.debug(f"Tipo de mensagem não implementado: {command_type}")
+            parsed['longitude'] = '0'
+            parsed['latitude'] = '0'
+            parsed['device_time'] = ''
+            parsed['speed'] = '0'
+            parsed['altitude'] = '0'
             
         logger.debug(f"Mensagem analisada: Tipo={command_type}, IMEI={parsed['imei']}")
         return parsed

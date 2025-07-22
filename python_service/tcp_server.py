@@ -108,18 +108,30 @@ class GPSDeviceHandler:
                     pass
             
     async def save_gps_data(self, parsed_data: dict, raw_message: str):
-        """Salva apenas dados do dispositivo GPS no MongoDB."""
+        """Salva todos os protocolos GPS no MongoDB - dados_veiculo."""
         try:
-            # Criar objeto DadosVeiculo (dados do dispositivo)
+            # Criar objeto DadosVeiculo para TODOS os protocolos
             dados = DadosVeiculo(
                 IMEI=parsed_data['imei'],
                 longitude=parsed_data.get('longitude', '0'),
                 latitude=parsed_data.get('latitude', '0'), 
                 altidude=parsed_data.get('altitude', '0'),
                 speed=parsed_data.get('speed', '0'),
-                ignicao=parsed_data.get('ignition', False),
+                ignicao=parsed_data.get('ignition') == 'true' if parsed_data.get('ignition') else False,
                 dataDevice=parsed_data.get('device_time', ''),
-                data=datetime.utcnow()
+                data=datetime.utcnow(),
+                # Campos para todos os protocolos
+                protocol_type=parsed_data.get('command_type', 'UNKNOWN'),
+                raw_message=raw_message,
+                # Campos para bateria (GTIGL)
+                bateria_voltagem=float(parsed_data.get('battery_voltage', 0)) if parsed_data.get('battery_voltage') else None,
+                bateria_baixa=parsed_data.get('battery_low') == 'true',
+                # Campos para eventos especiais
+                evento_ignicao=parsed_data.get('ignition_event') == 'true',
+                comando_executado=parsed_data.get('comando_executado'),
+                # Campos para informação celular (GTBSI)
+                cell_id=parsed_data.get('cell_id'),
+                lac_code=parsed_data.get('lac_code')
             )
             
             # Inserir dados do dispositivo no MongoDB
@@ -165,7 +177,8 @@ class GPSDeviceHandler:
                 
             await mongodb_client.update_veiculo(veiculo)
             
-            logger.debug(f"Dados salvos: IMEI={parsed_data['imei']}, Ignição={parsed_data.get('ignition', False)}")
+            protocol_type = parsed_data.get('command_type', 'UNKNOWN')
+            logger.info(f"📊 DADOS SALVOS: IMEI={parsed_data['imei']}, Protocolo={protocol_type}, Ignição={parsed_data.get('ignition', 'N/A')}")
             
         except Exception as e:
             logger.error(f"Erro ao salvar dados do dispositivo: {e}")

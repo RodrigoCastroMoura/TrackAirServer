@@ -3,7 +3,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 class DadosVeiculo(BaseModel):
-    """Dados de rastreamento do veículo - igual ao C#."""
+    """Dados de rastreamento do veículo - todos os protocolos GPS."""
     _id: Optional[str] = None
     IMEI: str
     longitude: str
@@ -13,6 +13,18 @@ class DadosVeiculo(BaseModel):
     ignicao: Optional[bool] = None
     data: Optional[datetime] = None
     dataDevice: str
+    # Campos para todos os protocolos GPS
+    protocol_type: str  # GTFRI, GTIGN, GTIGF, GTIGL, GTOUT, GTSRI, GTBSI
+    raw_message: Optional[str] = None  # Mensagem original completa
+    # Campos específicos para bateria (GTIGL)
+    bateria_voltagem: Optional[float] = None
+    bateria_baixa: Optional[bool] = False
+    # Campos para eventos especiais
+    evento_ignicao: Optional[bool] = False  # True se for evento de ignição
+    comando_executado: Optional[str] = None  # Para GTOUT, GTSRI
+    # Campos para informação celular (GTBSI)
+    cell_id: Optional[str] = None
+    lac_code: Optional[str] = None
 
 class Veiculo(BaseModel):
     """Informações do veículo - simplificado para clean code."""

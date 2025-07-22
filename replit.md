@@ -29,7 +29,7 @@ Serviço Python standalone com arquitetura assíncrona:
 
 ### Database Schema (Clean Code)
 O sistema usa MongoDB com 2 coleções essenciais:
-- **DadosVeiculo**: Dados do dispositivo GPS (IMEI, longitude, latitude, altitude, speed, ignicao, dataDevice, data)
+- **DadosVeiculo**: Todos os protocolos GPS (IMEI, longitude, latitude, altitude, speed, ignicao, dataDevice, data, protocol_type, raw_message, bateria_voltagem, evento_ignicao, comando_executado, cell_id, lac_code)
 - **Veiculo**: Controle de comandos e monitoramento (IMEI, ds_placa, ds_modelo, comandoBloqueo, bloqueado, ignicao, comandoTrocarIP, bateria_voltagem, bateria_baixa, ultimo_alerta_bateria)
 
 Sistema simplificado para receber dados GPS e gerenciar comandos de bloqueio/desbloqueio e troca de IP.
