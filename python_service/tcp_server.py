@@ -119,7 +119,9 @@ class GPSDeviceHandler:
                 speed=parsed_data.get('speed', '0'),
                 ignicao=parsed_data.get('ignition', False),
                 dataDevice=parsed_data.get('device_time', ''),
-                data=datetime.utcnow()
+                data=datetime.utcnow(),
+                protocolo=parsed_data.get('command_type'),  # Tipo de protocolo (GTFRI, GTIGN, GTIGF, GTIGL, etc.)
+                mensagem_raw=raw_message  # Mensagem completa original
             )
             
             # Inserir dados do dispositivo no MongoDB
@@ -165,7 +167,7 @@ class GPSDeviceHandler:
                 
             await mongodb_client.update_veiculo(veiculo)
             
-            logger.debug(f"Dados salvos: IMEI={parsed_data['imei']}, Ignição={parsed_data.get('ignition', False)}")
+            logger.info(f"✅ Dados salvos: IMEI={parsed_data['imei']}, Protocolo={parsed_data.get('command_type')}, Ignição={parsed_data.get('ignition', False)}")
             
         except Exception as e:
             logger.error(f"Erro ao salvar dados do dispositivo: {e}")
