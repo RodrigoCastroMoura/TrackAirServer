@@ -24,6 +24,7 @@ Sistema Python TCP para comunicação com dispositivos GPS GV50 em modo Long-Con
 - Comandos de bloqueio/desbloqueio
 - Comandos de troca de IP
 - Status atual dos dispositivos
+- Monitoramento de bateria (voltagem, alertas, timestamps)
 
 ## 🚀 Instalação Rápida
 
@@ -56,6 +57,7 @@ Mensagens suportadas:
 - **GTFRI**: dados GPS regulares
 - **GTIGN**: evento ignição ligada  
 - **GTIGF**: evento ignição desligada
+- **GTIGL**: alerta de bateria baixa (voltagem crítica)
 - **GTOUT**: comandos de bloqueio
 - **GTSRI**: comandos de troca de IP
 
@@ -73,6 +75,25 @@ db.veiculo.updateOne({IMEI: "123456789"}, {$set: {comandoTrocarIP: true}})
 ```
 
 Sistema executa comandos automaticamente quando dispositivo envia próxima mensagem GPS.
+
+## 🔋 Monitoramento de Bateria
+
+Sistema monitora automaticamente bateria através do protocolo GTIGL:
+
+**Níveis de alerta:**
+- 🚨 **CRÍTICA**: ≤ 10.5V (dispositivo vai desligar)
+- ⚠️ **BAIXA**: ≤ 11.0V (atenção urgente)
+- 🔋 **AVISO**: ≤ 11.5V (nível baixo)
+- ✅ **NORMAL**: > 12.0V (funcionamento normal)
+
+**Consultar bateria:**
+```javascript
+// Ver status de bateria
+db.veiculo.find({bateria_baixa: true}).pretty()
+
+// Histórico de alertas
+db.veiculo.find({ultimo_alerta_bateria: {$exists: true}}).sort({ultimo_alerta_bateria: -1})
+```
 
 Sistema executa comandos automaticamente quando dispositivo envia próxima mensagem GPS.
 

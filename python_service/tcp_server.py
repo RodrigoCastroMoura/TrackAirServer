@@ -138,6 +138,31 @@ class GPSDeviceHandler:
                 # Atualizar ignição
                 veiculo.ignicao = parsed_data.get('ignition', False)
                 
+            # Processar dados de bateria baixa (protocolo GTIGL)
+            if parsed_data.get('battery_low') == 'true':
+                try:
+                    battery_voltage = float(parsed_data.get('battery_voltage', '0'))
+                    veiculo.bateria_voltagem = battery_voltage
+                    veiculo.bateria_baixa = True
+                    veiculo.ultimo_alerta_bateria = datetime.utcnow()
+                    
+                    logger.warning(f"🔋 BATERIA BAIXA detectada: IMEI={parsed_data['imei']}, Voltagem={battery_voltage}V")
+                    
+                    # Log crítico para bateria muito baixa
+                    if battery_voltage < 11.0:
+                        logger.critical(f"🚨 BATERIA CRÍTICA: IMEI={parsed_data['imei']}, {battery_voltage}V - Dispositivo pode desligar!")
+                    elif battery_voltage < 11.5:
+                        logger.error(f"⚠️ BATERIA MUITO BAIXA: IMEI={parsed_data['imei']}, {battery_voltage}V - Atenção necessária")
+                        
+                except (ValueError, TypeError):
+                    logger.error(f"Erro ao processar voltagem da bateria: {parsed_data.get('battery_voltage')}")
+            else:
+                # Resetar alerta de bateria baixa se não for GTIGL
+                if veiculo.bateria_baixa and parsed_data.get('command_type') == 'GTFRI':
+                    # Só reseta se receber dados normais (GTFRI) - indica que bateria melhorou
+                    veiculo.bateria_baixa = False
+                    logger.info(f"✅ Status de bateria baixa resetado para IMEI={parsed_data['imei']}")
+                
             await mongodb_client.update_veiculo(veiculo)
             
             logger.debug(f"Dados salvos: IMEI={parsed_data['imei']}, Ignição={parsed_data.get('ignition', False)}")

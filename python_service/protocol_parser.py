@@ -59,15 +59,15 @@ def parse_gv50_message(raw_message: str) -> Optional[Dict]:
                 parsed['device_time'] = parts[13]
                 parsed['speed'] = parts[8]
                 parsed['altitude'] = parts[10]
-                parsed['ignition'] = parts[6] == '1' if len(parts) > 6 else False
+                parsed['ignition'] = 'true' if (len(parts) > 6 and parts[6] == '1') else 'false'
                 
         elif command_type in ['GTIGN', 'GTIGF']:
             # Eventos de ignição (ON/OFF)
             ignition_state = command_type == 'GTIGN'  # True se ligada, False se desligada
             
             if len(parts) >= 13:
-                parsed['ignition'] = ignition_state
-                parsed['ignition_event'] = True  # Marca como evento de ignição
+                parsed['ignition'] = 'true' if ignition_state else 'false'
+                parsed['ignition_event'] = 'true'  # Marca como evento de ignição
                 parsed['longitude'] = parts[10] if len(parts) > 10 else '0'
                 parsed['latitude'] = parts[11] if len(parts) > 11 else '0'
                 parsed['device_time'] = parts[12] if len(parts) > 12 else ''
@@ -76,16 +76,18 @@ def parse_gv50_message(raw_message: str) -> Optional[Dict]:
             logger.info(f"Evento de ignição detectado: IMEI={parsed['imei']}, Estado={'LIGADA' if ignition_state else 'DESLIGADA'}")
                 
         elif command_type == 'GTIGL':
-            # Evento de ignição por login
+            # Evento de bateria baixa (Low External Power)
             if len(parts) >= 13:
-                parsed['ignition'] = True
-                parsed['ignition_event'] = True
+                # GTIGL: Protocolo para bateria baixa do veículo
+                parsed['battery_voltage'] = parts[5] if len(parts) > 5 else '0'  # Voltagem da bateria
+                parsed['battery_low'] = 'true'  # Marca que bateria está baixa
                 parsed['longitude'] = parts[10] if len(parts) > 10 else '0'
                 parsed['latitude'] = parts[11] if len(parts) > 11 else '0'
                 parsed['device_time'] = parts[12] if len(parts) > 12 else ''
-                parsed['speed'] = '0'
+                parsed['speed'] = '0'  # Geralmente parado quando bateria baixa
                 parsed['altitude'] = parts[9] if len(parts) > 9 else '0'
-            logger.info(f"Evento de ignição por login: IMEI={parsed['imei']}")
+                parsed['ignition'] = 'false'  # Provavelmente desligado se bateria baixa
+            logger.warning(f"🔋 ALERTA BATERIA BAIXA: IMEI={parsed['imei']}, Voltagem={parsed.get('battery_voltage', 'N/A')}V")
             
         else:
             # Outros tipos (GTOUT, GTSRI, GTBSI)

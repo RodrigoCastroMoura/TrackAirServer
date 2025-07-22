@@ -243,6 +243,9 @@ db.veiculo.find().pretty()
 # Ver últimos dados GPS
 db.dados_veiculo.find().sort({data: -1}).limit(10).pretty()
 
+# Ver status de bateria
+db.veiculo.find({bateria_baixa: true}).pretty()
+
 # Contar registros
 db.dados_veiculo.count()
 ```

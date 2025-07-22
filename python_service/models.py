@@ -24,4 +24,8 @@ class Veiculo(BaseModel):
     bloqueado: Optional[bool] = False  # Status atual de bloqueio
     comandoTrocarIP: Optional[bool] = None  # True = comando para trocar IP pendente
     ignicao: bool = False  # Status da ignição
+    # Campos para monitoramento de bateria
+    bateria_voltagem: Optional[float] = None  # Voltagem atual da bateria
+    bateria_baixa: Optional[bool] = False  # True se bateria estiver baixa
+    ultimo_alerta_bateria: Optional[datetime] = None  # Timestamp do último alerta
     ts_user_manu: Optional[datetime] = Field(default_factory=datetime.utcnow)  # Última atualização
