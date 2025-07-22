@@ -29,6 +29,9 @@ class Config(BaseSettings):
     keep_alive_timeout: int = Field(default=600)  # 10 min keep-alive
     connection_mode: str = Field(default="long-connection")  # Modo de conexão GV50
     
+    # Parada Prolongada Configuration
+    tempo_parada_alerta: int = Field(default=1800)  # 30 min parado com ignição OFF
+    
     # IP Configuration for devices
     new_server_ip: str = Field(default="")
     new_server_port: int = Field(default=8000)

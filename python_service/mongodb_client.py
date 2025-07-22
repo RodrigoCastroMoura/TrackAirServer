@@ -200,6 +200,99 @@ class MongoDBClient:
         except Exception as e:
             logger.error(f"Erro ao buscar comandos pendentes: {e}")
             return []
+    
+    async def atualizar_status_parada(self, imei: str, speed: str, ignicao: bool) -> bool:
+        """Atualiza status de parada prolongada do veículo."""
+        try:
+            collection = self.database.veiculo
+            now = datetime.utcnow()
+            
+            # Buscar status atual
+            veiculo = await collection.find_one({"IMEI": imei})
+            
+            # Verificar se está parado (speed = 0) e com ignição OFF
+            esta_parado = (speed == "0" or speed == 0) and not ignicao
+            
+            update_data = {
+                "ignicao": ignicao,
+                "ts_user_manu": now
+            }
+            
+            if esta_parado:
+                # Se estava parado e continua parado, manter tempo inicial
+                if veiculo and veiculo.get("tempo_parado_iniciado"):
+                    # Manter tempo anterior
+                    pass
+                else:
+                    # Começou a parar agora
+                    update_data["tempo_parado_iniciado"] = now
+                    update_data["alertado_parada_prolongada"] = False
+                    logger.info(f"Veículo {imei} parou com ignição OFF em {now}")
+            else:
+                # Veículo em movimento ou ignição ligada - resetar controle de parada
+                if veiculo and veiculo.get("tempo_parado_iniciado"):
+                    logger.info(f"Veículo {imei} voltou a se mover ou ligou ignição")
+                
+                update_data["tempo_parado_iniciado"] = None
+                update_data["alertado_parada_prolongada"] = False
+            
+            await collection.update_one(
+                {"IMEI": imei},
+                {"$set": update_data},
+                upsert=True
+            )
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Erro ao atualizar status parada {imei}: {e}")
+            return False
+    
+    async def verificar_paradas_prolongadas(self, tempo_limite_segundos: int) -> List[Veiculo]:
+        """Busca veículos com parada prolongada que ainda não foram alertados."""
+        try:
+            collection = self.database.veiculo
+            now = datetime.utcnow()
+            tempo_limite = now - timedelta(seconds=tempo_limite_segundos)
+            
+            cursor = collection.find({
+                "tempo_parado_iniciado": {"$ne": None, "$lt": tempo_limite},
+                "alertado_parada_prolongada": {"$ne": True}
+            })
+            
+            veiculos = []
+            async for doc in cursor:
+                doc['_id'] = str(doc['_id'])
+                veiculos.append(Veiculo(**doc))
+                
+            if veiculos:
+                logger.info(f"Encontrados {len(veiculos)} veículos com parada prolongada")
+                
+            return veiculos
+            
+        except Exception as e:
+            logger.error(f"Erro ao verificar paradas prolongadas: {e}")
+            return []
+    
+    async def marcar_alertado_parada_prolongada(self, imei: str) -> bool:
+        """Marca veículo como já alertado sobre parada prolongada."""
+        try:
+            collection = self.database.veiculo
+            
+            await collection.update_one(
+                {"IMEI": imei},
+                {"$set": {
+                    "alertado_parada_prolongada": True,
+                    "ts_user_manu": datetime.utcnow()
+                }}
+            )
+            
+            logger.info(f"Veículo {imei} marcado como alertado sobre parada prolongada")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Erro ao marcar alerta parada {imei}: {e}")
+            return False
 
 # Instância global
 mongodb_client = MongoDBClient()
