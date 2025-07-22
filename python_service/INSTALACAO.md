@@ -343,7 +343,7 @@ mongo --eval "db.adminCommand('ismaster')"
 │   ├── models.py           # Modelos de dados
 │   ├── config.py           # Configurações
 │   ├── logger.py           # Sistema de logs
-│   ├── command_api.py      # API de comandos
+
 │   ├── requirements.txt    # Dependências
 │   ├── .env               # Configuração
 │   ├── logs/              # Logs do sistema

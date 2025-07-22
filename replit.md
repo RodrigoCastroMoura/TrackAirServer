@@ -43,10 +43,10 @@ Sistema simplificado para receber dados GPS e gerenciar comandos de bloqueio/des
 - ACK específico para cada tipo de comando (+SACK:GTFRI, +SACK:GTIGN, etc.)
 
 ### Command System
-- Gerenciamento de comandos baseado em fila para dispositivos GPS
+- Gerenciamento de comandos via MongoDB (coleção Veiculo)
 - Suporte a bloqueio/desbloqueio de veículos
 - Capacidades de configuração de servidor e APN
-- Rastreamento de status de comandos (pendente, enviado, confirmado, falhou)
+- Comandos controlados por campos: comandoBloqueo, comandoTrocarIP
 
 ### Device Manager
 - Gerencia conexões ativas de dispositivos

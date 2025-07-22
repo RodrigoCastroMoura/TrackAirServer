@@ -59,7 +59,7 @@ Mensagens suportadas:
 - **GTOUT**: comandos de bloqueio
 - **GTSRI**: comandos de troca de IP
 
-## 🚗 Comandos de Controle
+## 🚗 Comandos de Controle (via MongoDB)
 
 ```javascript
 // Bloquear veículo
@@ -71,6 +71,10 @@ db.veiculo.updateOne({IMEI: "123456789"}, {$set: {comandoBloqueo: false}})
 // Trocar IP
 db.veiculo.updateOne({IMEI: "123456789"}, {$set: {comandoTrocarIP: true}})
 ```
+
+Sistema executa comandos automaticamente quando dispositivo envia próxima mensagem GPS.
+
+Sistema executa comandos automaticamente quando dispositivo envia próxima mensagem GPS.
 
 ## 📚 Documentação
 
