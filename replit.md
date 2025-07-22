@@ -9,6 +9,7 @@ Este é um serviço Python TCP completo para comunicação com dispositivos GPS 
 Preferred communication style: Simple, everyday language.
 Projeto requer apenas serviço Python, sem interface web.
 Clean Code: Usar apenas campos essenciais, remover classes/arquivos não utilizados.
+Remover arquivos de teste para ambiente de produção limpo.
 
 ## System Architecture
 
