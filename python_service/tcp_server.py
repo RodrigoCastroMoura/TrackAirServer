@@ -180,7 +180,7 @@ class GPSDeviceHandler:
                 
             await mongodb_client.update_veiculo(veiculo)
             
-            logger.info(f"✅ Dados salvos: IMEI={parsed_data['imei']}, Protocolo={parsed_data.get('command_type')}, Ignição={parsed_data.get('ignition', False)}")
+            logger.info(f"✅ Dados salvos: IMEI={parsed_data['imei']}, Tipo={parsed_data.get('command_type')}, Ignição={parsed_data.get('ignition', False)}")
             
         except Exception as e:
             logger.error(f"Erro ao salvar dados do dispositivo: {e}")

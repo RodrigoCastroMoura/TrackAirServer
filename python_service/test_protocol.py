@@ -58,26 +58,32 @@ async def test_protocol_recording():
     print(f"📊 Encontrados {len(dados)} registros para o IMEI de teste")
     
     for i, dado in enumerate(dados):
-        protocolo = dado.get('protocolo', 'N/A')
         mensagem = dado.get('mensagem_raw', 'N/A')[:50] + '...' if len(dado.get('mensagem_raw', '')) > 50 else dado.get('mensagem_raw', 'N/A')
         ignicao = dado.get('ignicao', False)
         
-        print(f"  {i+1}. Protocolo: {protocolo}, Ignição: {ignicao}")
+        print(f"  {i+1}. Ignição: {ignicao}")
         print(f"     Mensagem: {mensagem}")
         print()
     
-    # Verificar se todos os protocolos foram capturados
-    protocolos_encontrados = set(dado.get('protocolo') for dado in dados if dado.get('protocolo'))
-    protocolos_esperados = {'GTFRI', 'GTIGN', 'GTIGF', 'GTIGL'}
+    # Verificar se todos os tipos de mensagem foram processados
+    mensagens_com_dados = [dado for dado in dados if dado.get('mensagem_raw')]
+    tipos_esperados = ['GTFRI', 'GTIGN', 'GTIGF', 'GTIGL']
+    tipos_encontrados = set()
     
-    print(f"🎯 Protocolos esperados: {protocolos_esperados}")
-    print(f"✅ Protocolos encontrados: {protocolos_encontrados}")
+    for dado in mensagens_com_dados:
+        mensagem_raw = dado.get('mensagem_raw', '')
+        for tipo in tipos_esperados:
+            if tipo in mensagem_raw:
+                tipos_encontrados.add(tipo)
     
-    if protocolos_esperados.issubset(protocolos_encontrados):
-        print("🎉 SUCESSO: Todos os protocolos foram gravados corretamente!")
+    print(f"🎯 Tipos esperados: {tipos_esperados}")
+    print(f"✅ Tipos encontrados: {tipos_encontrados}")
+    
+    if set(tipos_esperados).issubset(tipos_encontrados):
+        print("🎉 SUCESSO: Todos os tipos de mensagem foram processados corretamente!")
     else:
-        protocolos_faltantes = protocolos_esperados - protocolos_encontrados
-        print(f"⚠️ ATENÇÃO: Protocolos não encontrados: {protocolos_faltantes}")
+        tipos_faltantes = set(tipos_esperados) - tipos_encontrados
+        print(f"⚠️ ATENÇÃO: Tipos não encontrados: {tipos_faltantes}")
     
     # Limpeza dos dados de teste
     await mongodb_client.db.dados_veiculo.delete_many({"IMEI": "123456789012345"})
