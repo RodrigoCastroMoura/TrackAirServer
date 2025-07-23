@@ -42,7 +42,7 @@ class GPSDeviceHandler:
                     )
                     
                     if not data:
-                        logger.info(f"Dispositivo {client_ip} encerrou conexão")
+                        logger.info(f"Dispositivo {client_ip} encerrou conexão normalmente")
                         break
                         
                     message = data.decode('utf-8').strip()
@@ -85,27 +85,41 @@ class GPSDeviceHandler:
                     logger.warning(f"Timeout na conexão long-connection de {client_ip}")
                     # Enviar heartbeat request se necessário
                     if imei:
-                        await self.send_heartbeat_request(writer)
+                        try:
+                            await self.send_heartbeat_request(writer)
+                        except (ConnectionResetError, BrokenPipeError, OSError):
+                            logger.info(f"Dispositivo {client_ip} desconectou durante heartbeat")
+                            break
+                    continue
+                except (ConnectionResetError, BrokenPipeError, OSError) as e:
+                    logger.info(f"Dispositivo {client_ip} desconectou abruptamente: {type(e).__name__}")
+                    break
+                except UnicodeDecodeError:
+                    logger.warning(f"Dados inválidos recebidos de {client_ip}, ignorando mensagem")
                     continue
                     
         except asyncio.IncompleteReadError:
-            logger.info(f"Dispositivo {client_ip} desconectado (incomplete read)")
-        except ConnectionResetError:
-            logger.info(f"Dispositivo {client_ip} resetou conexão")
+            logger.info(f"Dispositivo {client_ip} desconectado (leitura incompleta)")
+        except (ConnectionResetError, BrokenPipeError, OSError) as e:
+            logger.info(f"Dispositivo {client_ip} desconectou: {type(e).__name__}")
         except Exception as e:
-            logger.error(f"Erro ao processar dispositivo long-connection {client_ip}: {e}")
+            logger.error(f"Erro inesperado ao processar dispositivo {client_ip}: {e}")
         finally:
             # Cleanup da conexão
             if imei and imei in self.connected_devices:
                 logger.info(f"Removendo dispositivo {imei} das conexões ativas")
                 del self.connected_devices[imei]
             
+            # Fechar conexão de forma segura
             if not writer.is_closing():
-                writer.close()
                 try:
+                    writer.close()
                     await writer.wait_closed()
-                except:
+                except (ConnectionResetError, BrokenPipeError, OSError):
+                    # Conexão já foi resetada, não há problema
                     pass
+                except Exception as e:
+                    logger.debug(f"Erro ao fechar conexão de {client_ip}: {e}")
             
     async def save_gps_data(self, parsed_data: dict, raw_message: str):
         """Salva apenas dados do dispositivo GPS no MongoDB."""
@@ -175,6 +189,9 @@ class GPSDeviceHandler:
     async def check_pending_commands(self, imei: str, writer: asyncio.StreamWriter):
         """Verifica e envia comandos pendentes para o dispositivo."""
         try:
+            if writer.is_closing():
+                return
+                
             veiculo = await mongodb_client.get_veiculo_by_imei(imei)
             if not veiculo:
                 return
@@ -189,20 +206,28 @@ class GPSDeviceHandler:
                     logger.info(f"Enviando comando de DESBLOQUEIO para {imei}")
                     
                 # Enviar comando
-                writer.write(command.encode('utf-8'))
-                await writer.drain()
-                
-                # Limpar comando após envio
-                await mongodb_client.clear_comando_bloqueio(imei)
-                
-                # Atualizar status de bloqueado
-                veiculo.bloqueado = veiculo.comandoBloqueo
-                await mongodb_client.update_veiculo(veiculo)
+                try:
+                    writer.write(command.encode('utf-8'))
+                    await writer.drain()
+                    
+                    # Limpar comando após envio
+                    await mongodb_client.clear_comando_bloqueio(imei)
+                    
+                    # Atualizar status de bloqueado
+                    veiculo.bloqueado = veiculo.comandoBloqueo
+                    await mongodb_client.update_veiculo(veiculo)
+                except (ConnectionResetError, BrokenPipeError, OSError):
+                    logger.warning(f"Dispositivo {imei} desconectou durante envio de comando de bloqueio")
+                    return
             
             # Verificar comando de trocar IP
             if veiculo.comandoTrocarIP:
-                await self.send_ip_config_command(imei, writer)
-                await mongodb_client.clear_comando_trocar_ip(imei)
+                try:
+                    await self.send_ip_config_command(imei, writer)
+                    await mongodb_client.clear_comando_trocar_ip(imei)
+                except (ConnectionResetError, BrokenPipeError, OSError):
+                    logger.warning(f"Dispositivo {imei} desconectou durante envio de comando de IP")
+                    return
             
         except Exception as e:
             logger.error(f"Erro ao verificar comandos para {imei}: {e}")
@@ -211,6 +236,9 @@ class GPSDeviceHandler:
     async def send_ip_config_command(self, imei: str, writer: asyncio.StreamWriter):
         """Envia comando para configurar novo IP do servidor."""
         try:
+            if writer.is_closing():
+                return
+                
             settings = self.settings
             
             # Verificar se há IPs configurados
@@ -234,29 +262,43 @@ class GPSDeviceHandler:
             writer.write(command.encode('utf-8'))
             await writer.drain()
             
+        except (ConnectionResetError, BrokenPipeError, OSError):
+            logger.warning(f"Dispositivo {imei} desconectou durante envio de comando de IP")
+            raise  # Re-lançar para permitir tratamento na função chamadora
         except Exception as e:
             logger.error(f"Erro ao enviar comando de IP para {imei}: {e}")
+            raise
             
     async def send_ack(self, writer: asyncio.StreamWriter, number: str, command_type: str = "GTFRI"):
         """Envia ACK para o dispositivo."""
         try:
+            if writer.is_closing():
+                return
             ack_message = create_ack_message(number, command_type)
             writer.write(ack_message.encode('utf-8'))
             await writer.drain()
             logger.debug(f"ACK enviado: {ack_message}")
+        except (ConnectionResetError, BrokenPipeError, OSError):
+            logger.debug(f"Dispositivo desconectou antes do ACK")
         except Exception as e:
             logger.error(f"Erro ao enviar ACK: {e}")
     
     async def send_heartbeat_request(self, writer: asyncio.StreamWriter):
         """Envia heartbeat request para manter conexão viva no modo long-connection."""
         try:
+            if writer.is_closing():
+                return
             # Comando heartbeat conforme documentação GV50
             heartbeat = "AT+GTHBD=gv50$"
             writer.write(heartbeat.encode('utf-8'))
             await writer.drain()
             logger.debug("Heartbeat request enviado para manter long-connection")
+        except (ConnectionResetError, BrokenPipeError, OSError):
+            logger.debug("Dispositivo desconectou durante heartbeat")
+            raise  # Re-lançar para permitir cleanup na chamada principal
         except Exception as e:
             logger.error(f"Erro ao enviar heartbeat: {e}")
+            raise
     
     async def cleanup_stale_connections(self):
         """Remove conexões inativas - task para modo long-connection."""
