@@ -19,7 +19,7 @@ async def test_protocol_recording():
     await mongodb_client.connect()
     
     # Limpar dados de teste anteriores
-    await mongodb_client.db.dados_veiculo.delete_many({"IMEI": "123456789012345"})
+    await mongodb_client.database.dados_veiculo.delete_many({"IMEI": "123456789012345"})
     
     print("📤 Enviando mensagens de teste...")
     
@@ -53,7 +53,7 @@ async def test_protocol_recording():
     # Verificar se os dados foram salvos corretamente
     print("\n🔍 Verificando dados salvos no MongoDB...")
     
-    dados = await mongodb_client.db.dados_veiculo.find({"IMEI": "123456789012345"}).to_list(10)
+    dados = await mongodb_client.database.dados_veiculo.find({"IMEI": "123456789012345"}).to_list(10)
     
     print(f"📊 Encontrados {len(dados)} registros para o IMEI de teste")
     
@@ -86,7 +86,7 @@ async def test_protocol_recording():
         print(f"⚠️ ATENÇÃO: Tipos não encontrados: {tipos_faltantes}")
     
     # Limpeza dos dados de teste
-    await mongodb_client.db.dados_veiculo.delete_many({"IMEI": "123456789012345"})
+    await mongodb_client.database.dados_veiculo.delete_many({"IMEI": "123456789012345"})
     print("\n🧹 Dados de teste removidos.")
 
 if __name__ == "__main__":
