@@ -41,9 +41,18 @@ def parse_gv50_message(raw_message: str) -> Optional[Dict]:
             logger.debug(f"Tipo de comando não reconhecido: {message_header}")
             return None
         
+        # Identificar tipo de mensagem (+RESP, +BUFF, +ACK)
+        message_type = '+RESP'  # Default
+        if '+BUFF:' in message_header:
+            message_type = '+BUFF'
+        elif '+ACK:' in message_header:
+            message_type = '+ACK'
+        elif '+RESP:' in message_header:
+            message_type = '+RESP'
+        
         # Estrutura básica para todos os tipos
         parsed = {
-            'message_type': '+RESP',
+            'message_type': message_type,
             'command_type': command_type,
             'imei': parts[2] if len(parts) > 2 else '',
             'number': parts[-1] if len(parts) > 0 else '0000',
