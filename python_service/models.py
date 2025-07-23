@@ -13,9 +13,6 @@ class DadosVeiculo(BaseModel):
     ignicao: Optional[bool] = None
     data: Optional[datetime] = None
     dataDevice: str
-    mensagem_raw: Optional[str]
-    # Campos dos protocolos GPS
-    protocolo: Optional[str] = None  # Tipo de protocolo: GTFRI, GTIGN, GTIGF, *GTIGL, etc.
     mensagem_raw: Optional[str] = None  # Mensagem original completa recebida do GPS
 
 class Veiculo(BaseModel):

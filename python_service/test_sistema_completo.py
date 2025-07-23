@@ -228,19 +228,17 @@ class TestadorSistemaGPS:
             "IMEI": {"$regex": "^TEST"}
         })
         
-        # Verificar campos protocolo e mensagem_raw
-        sample_com_protocolo = await mongodb_client.database.dados_veiculo.find_one({
+        # Verificar campo mensagem_raw
+        sample_com_mensagem = await mongodb_client.database.dados_veiculo.find_one({
             "IMEI": {"$regex": "^TEST"},
-            "protocolo": {"$exists": True},
             "mensagem_raw": {"$exists": True}
         })
         
-        if sample_com_protocolo:
-            protocolo = sample_com_protocolo.get('protocolo')
-            tem_mensagem = bool(sample_com_protocolo.get('mensagem_raw'))
-            resultado = f"Dados: {count_dados}, Veículos: {count_veiculos}, Protocolo: {protocolo}, Mensagem Raw: {tem_mensagem}"
+        if sample_com_mensagem:
+            tem_mensagem = bool(sample_com_mensagem.get('mensagem_raw'))
+            resultado = f"Dados: {count_dados}, Veículos: {count_veiculos}, Mensagem Raw: {tem_mensagem}"
         else:
-            resultado = f"Dados: {count_dados}, Veículos: {count_veiculos}, Campos protocolo/mensagem_raw: FALTANDO"
+            resultado = f"Dados: {count_dados}, Veículos: {count_veiculos}, Campo mensagem_raw: FALTANDO"
         
         if count_dados > 0 and count_veiculos > 0:
             return resultado

@@ -134,7 +134,6 @@ class GPSDeviceHandler:
                 ignicao=parsed_data.get('ignition', False),
                 dataDevice=parsed_data.get('device_time', ''),
                 data=datetime.utcnow(),
-                protocolo=parsed_data.get('command_type'),  # Tipo de protocolo (GTFRI, GTIGN, GTIGF, GTIGL, etc.)
                 mensagem_raw=raw_message  # Mensagem completa original
             )
             
