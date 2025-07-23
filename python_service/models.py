@@ -13,7 +13,6 @@ class DadosVeiculo(BaseModel):
     ignicao: Optional[bool] = None
     data: Optional[datetime] = None
     dataDevice: str
-    mensagem_raw: Optional[str]
     mensagem_raw: Optional[str] = None  # Mensagem original completa recebida do GPS
 
 class Veiculo(BaseModel):

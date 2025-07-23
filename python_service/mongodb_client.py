@@ -45,8 +45,11 @@ class MongoDBClient:
         """Insere dados GPS do veículo."""
         try:
             collection = self.database.dados_veiculo
-            dados_dict = dados.dict(exclude={'_id'})
+            dados_dict = dados.model_dump(exclude={'_id'})
             dados_dict['data'] = datetime.utcnow()
+            
+            # Debug log para verificar mensagem_raw
+            logger.debug(f"Inserindo dados: IMEI={dados.IMEI}, mensagem_raw='{dados_dict.get('mensagem_raw', 'MISSING')}'")
             
             result = await collection.insert_one(dados_dict)
             logger.info(f"Dados inseridos para IMEI {dados.IMEI}: {result.inserted_id}")
@@ -75,7 +78,7 @@ class MongoDBClient:
         """Atualiza informações do veículo."""
         try:
             collection = self.database.veiculo
-            veiculo_dict = veiculo.dict(exclude={'_id'})
+            veiculo_dict = veiculo.model_dump(exclude={'_id'})
             veiculo_dict['ts_user_manu'] = datetime.utcnow()
             
             result = await collection.update_one(

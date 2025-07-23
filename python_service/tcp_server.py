@@ -133,9 +133,17 @@ class GPSDeviceHandler:
                 speed=parsed_data.get('speed', '0'),
                 ignicao=parsed_data.get('ignition', False),
                 dataDevice=parsed_data.get('device_time', ''),
-                data=datetime.utcnow(),
                 mensagem_raw=raw_message  # Mensagem completa original
             )
+            
+            # Debug log para confirmar mensagem_raw
+            logger.debug(f"💾 Salvando dados GPS: IMEI={parsed_data['imei']}, raw_message='{raw_message[:50]}...'")
+            
+            # Verificar se mensagem_raw foi definida corretamente
+            if not dados.mensagem_raw:
+                logger.error(f"❌ ERRO: mensagem_raw está vazia para IMEI {parsed_data['imei']}")
+            else:
+                logger.debug(f"✅ mensagem_raw definida: {len(dados.mensagem_raw)} caracteres")
             
             # Inserir dados do dispositivo no MongoDB
             await mongodb_client.insert_dados_veiculo(dados)

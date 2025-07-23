@@ -18,7 +18,7 @@ class Config(BaseSettings):
     tcp_port: int = Field(default=8000)
     
     # Logging Configuration
-    log_level: str = Field(default="INFO")
+    log_level: str = Field(default="DEBUG")
     log_file: str = Field(default="logs/gps_service.log")
     
     # Service Configuration - Long Connection Mode
